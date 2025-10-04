@@ -5,6 +5,7 @@ from pydantic import parse_obj_as
 from contextlib import contextmanager
 import logging
 import copy
+from sqlalchemy.exc import IntegrityError
 
 
 from user_service.models.user import UserRepository, UserSchema, get_user_repository
@@ -25,13 +26,28 @@ async def user_list(user_repo: UserRepository) -> None:
     selected = []
     async def delete():
         global selected
-        for user in selected:
-            result = await user_repo.delete(user['name'])
-            if result.rowcount > 0:
-                ui.notify(f"Deleted user '{user['name']}'")
-            else:
-                ui.notify(f"Unable to delete user `{user['name']}'")
-            # have to refresh to see updates???
+        try:
+            deleted_users = []
+            for user in selected:
+                result = await user_repo.delete(user['name'])
+                if result.rowcount > 0:
+                    deleted_users.append(user['name'])
+                    ui.notify(f"Deleted user '{user['name']}'", type='positive')
+                else:
+                    ui.notify(f"Unable to delete user '{user['name']}'", type='negative')
+            
+            # Refresh the user list to show the updates
+            user_list.refresh()
+            
+            # Clear selected state
+            selected = []
+            button.disable()
+            
+        except Exception as e:
+            ui.notify(f"Error deleting users: {str(e)}", type='negative')
+            user_list.refresh()
+            selected = []
+            button.disable()
 
     button = ui.button(on_click=delete, icon='delete')
 
@@ -55,9 +71,17 @@ async def user_list(user_repo: UserRepository) -> None:
 @ui.page("/")
 async def index(user_repo: UserRepository = Depends(get_user_repository)):
     async def create() -> None:
-        await user_repo.create(name=name.value)
-        name.value = ""
-        user_list.refresh()
+        try:
+            await user_repo.create(name=name.value)
+            ui.notify(f"User: '{name.value}' created successfully", type='positive')
+            name.value = ""
+            user_list.refresh()
+        except IntegrityError:
+            ui.notify(f"User: '{name.value}' already exists", type='negative')
+            name.value = ""
+        except Exception as e:
+            ui.notify(f"Error creating user: {str(e)}", type='negative')
+            name.value = ""
 
     with ui.column().classes('mx-auto'):
         # tailwind
