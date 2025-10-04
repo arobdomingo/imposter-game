@@ -13,19 +13,24 @@ from user_service.models.user import UserRepository, UserSchema, get_user_reposi
 
 logger = logging.getLogger('uvicorn.error')
 
+# Global state for pagination
+current_page = 1
+current_page_size = 50
+
 @ui.refreshable
 async def user_list(user_repo: UserRepository) -> None:
-
-    user_models = await user_repo.get_all()
-    users = []
-    for model in user_models:
-        users.append(UserSchema.from_db_model(model).model_dump())
-
-    ui.label("All Users")
+    global current_page, current_page_size
+    # Get paginated users
+    user_models, total_count = await user_repo.get_paginated(current_page, current_page_size)
+    users = [UserSchema.from_db_model(model).model_dump() for model in user_models]
+    
+    # Calculate pagination info
+    total_pages = (total_count + current_page_size - 1) // current_page_size if total_count > 0 else 0
+    
+    ui.label(f"Users (Page {current_page} of {total_pages}, Total: {total_count})")
 
     selected = []
     async def delete():
-        global selected
         try:
             deleted_users = []
             for user in selected:
@@ -40,32 +45,76 @@ async def user_list(user_repo: UserRepository) -> None:
             user_list.refresh()
             
             # Clear selected state
-            selected = []
+            selected.clear()
             button.disable()
             
         except Exception as e:
             ui.notify(f"Error deleting users: {str(e)}", type='negative')
             user_list.refresh()
-            selected = []
+            selected.clear()
             button.disable()
 
     button = ui.button(on_click=delete, icon='delete')
 
     button.disable()
     def toggle_delete_button(e):
-        global selected
-        selected = e.selection
-        if len(e.selection) > 0:
+        selected.clear()
+        selected.extend(e.selection)
+        if len(selected) > 0:
             button.enable()
         else:
             button.disable()
-
 
     columns = [{'name': 'name', 'label': 'Name', 'field': 'name', 'required': True, 'align': 'left'}]
     table = ui.table(columns=columns, rows=users,
                      row_key='name',
                      on_select=toggle_delete_button)
     table.set_selection('multiple')
+    
+    # Pagination controls
+    with ui.row().classes('w-full justify-center items-center gap-2 mt-4'):
+        # Page size selector
+        page_size_select = ui.select(
+            options=[10, 25, 50, 100], 
+            value=current_page_size,
+            label='Page Size'
+        ).classes('w-24')
+        
+        # Previous page button
+        prev_button = ui.button('Previous', icon='chevron_left')
+        if current_page <= 1:
+            prev_button.disable()
+        
+        # Page info
+        ui.label(f"Page {current_page} of {total_pages}")
+        
+        # Next page button
+        next_button = ui.button('Next', icon='chevron_right')
+        if current_page >= total_pages:
+            next_button.disable()
+        
+        # Page navigation handlers
+        async def go_to_previous():
+            global current_page
+            if current_page > 1:
+                current_page -= 1
+                user_list.refresh()
+        
+        async def go_to_next():
+            global current_page
+            if current_page < total_pages:
+                current_page += 1
+                user_list.refresh()
+        
+        async def change_page_size():
+            global current_page, current_page_size
+            current_page = 1
+            current_page_size = page_size_select.value
+            user_list.refresh()
+        
+        prev_button.on_click(go_to_previous)
+        next_button.on_click(go_to_next)
+        page_size_select.on('update:model-value', change_page_size)
 
 
 @ui.page("/")
