@@ -88,6 +88,16 @@ async def user_list(user_repo: UserRepository) -> None:
         # Page info
         ui.label(f"Page {current_page} of {total_pages}")
         
+        # Page jump input
+        page_input = ui.input(
+            label='Go to page',
+            placeholder=f'1-{total_pages}',
+            value=str(current_page)
+        ).classes('w-20')
+        
+        # Jump button
+        jump_button = ui.button('Go', icon='arrow_forward')
+        
         # Next page button
         next_button = ui.button('Next', icon='chevron_right')
         if current_page >= total_pages:
@@ -112,8 +122,21 @@ async def user_list(user_repo: UserRepository) -> None:
             current_page_size = page_size_select.value
             user_list.refresh()
         
+        async def jump_to_page():
+            global current_page
+            try:
+                target_page = int(page_input.value)
+                if 1 <= target_page <= total_pages:
+                    current_page = target_page
+                    user_list.refresh()
+                else:
+                    ui.notify(f"请输入 1 到 {total_pages} 之间的页码", type='negative')
+            except ValueError:
+                ui.notify("请输入有效的页码数字", type='negative')
+        
         prev_button.on_click(go_to_previous)
         next_button.on_click(go_to_next)
+        jump_button.on_click(jump_to_page)
         page_size_select.on('update:model-value', change_page_size)
 
 
