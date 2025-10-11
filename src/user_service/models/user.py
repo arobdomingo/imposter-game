@@ -29,9 +29,11 @@ class UserRepository:
 
     async def create(self, name: str, email: str, password: str) -> User:
         try:
-            result = self.session.execute(insert(User), [{"name": name, "email": email, "password": password}])
+            new_user = User(name=name, email=email, password=password)
+            self.session.add(new_user)
             self.session.commit()
-            return User(name=name, password=password, email=email)
+            self.session.refresh(new_user)  # This retrieves the auto-generated id
+            return new_user
         except IntegrityError:
             self.session.rollback()
             raise
@@ -93,6 +95,12 @@ class UserSchema(BaseModel):
     def from_db_model(cls, user: User) -> "UserSchema":
         """Create a UserSchema from a User"""
         return cls(id=user.id, name=user.name, email=user.email, password=user.password)
+
+class UserCreateSchema(BaseModel):
+    """Schema for creating a user (without id)"""
+    name: str
+    email: str
+    password: str
 
 
 class PaginatedUsersResponse(BaseModel):

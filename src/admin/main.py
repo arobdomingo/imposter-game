@@ -34,12 +34,12 @@ async def user_list(user_repo: UserRepository) -> None:
         try:
             deleted_users = []
             for user in selected:
-                result = await user_repo.delete(user['name'])
+                result = await user_repo.delete(user['id'])
                 if result.rowcount > 0:
-                    deleted_users.append(user['name'])
-                    ui.notify(f"Deleted user '{user['name']}'", type='positive')
+                    deleted_users.append(user['id'])
+                    ui.notify(f"Deleted user '{user['id']}'", type='positive')
                 else:
-                    ui.notify(f"Unable to delete user '{user['name']}'", type='negative')
+                    ui.notify(f"Unable to delete user '{user['id']}'", type='negative')
             
             # Refresh the user list to show the updates
             user_list.refresh()
@@ -65,9 +65,14 @@ async def user_list(user_repo: UserRepository) -> None:
         else:
             button.disable()
 
-    columns = [{'name': 'name', 'label': 'Name', 'field': 'name', 'required': True, 'align': 'left'}]
+    columns = [
+        {'name': 'id', 'label': 'ID', 'field': 'id', 'align': 'left'},
+        {'name': 'name', 'label': 'Name', 'field': 'name', 'required': True, 'align': 'left'},
+        {'name': 'email', 'label': 'Email', 'field': 'email', 'align': 'left'},
+        
+        ]
     table = ui.table(columns=columns, rows=users,
-                     row_key='name',
+                     row_key='id',
                      on_select=toggle_delete_button)
     table.set_selection('multiple')
     
@@ -144,21 +149,29 @@ async def user_list(user_repo: UserRepository) -> None:
 async def index(user_repo: UserRepository = Depends(get_user_repository)):
     async def create() -> None:
         try:
-            await user_repo.create(name=name.value)
+            await user_repo.create(name=name.value, email=email.value, password=password.value)
             ui.notify(f"User: '{name.value}' created successfully", type='positive')
             name.value = ""
+            email.value = ""
+            password.value = ""
             user_list.refresh()
         except IntegrityError:
             ui.notify(f"User: '{name.value}' already exists", type='negative')
             name.value = ""
+            email.value = ""
+            password.value = ""
         except Exception as e:
             ui.notify(f"Error creating user: {str(e)}", type='negative')
             name.value = ""
+            email.value = ""
+            password.value = ""
 
     with ui.column().classes('mx-auto'):
         # tailwind
         with ui.row().classes('w-full items-center px-4'):
             name = ui.input(label='Name')
+            email = ui.input(label='Email')
+            password = ui.input(label='Password')
             ui.button(on_click=create, icon='add')
         await user_list(user_repo)
 
