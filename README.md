@@ -67,3 +67,13 @@ $ docker compose exec web pytest
 [Alembic](https://alembic.sqlalchemy.org/en/latest/) - This tool is used to manage changes to our database schemas. Whenever you want to modify a table's shape in postgres (i.e., add, remove, or change the type of a column), use an alembic migration.
 
 [NiceGUI](https://nicegui.io/) - This is the library used for the frontend in the admin interface.
+
+## CI/CD Pipeline
+
+This project uses GitHub Actions for continuous integration. On every push and pull request to the `main` branch, the following checks are automatically run:
+
+- **Ruff Linting**: Code style and quality checks
+- **Ruff Format**: Code formatting validation
+- **Pytest**: Automated test suite with coverage reporting
+
+All checks must pass before a pull request can be merged to the main branch.
