@@ -130,9 +130,9 @@ async def user_list(user_repo: UserRepository) -> None:
                     current_page = target_page
                     user_list.refresh()
                 else:
-                    ui.notify(f"请输入 1 到 {total_pages} 之间的页码", type='negative')
+                    ui.notify(f"Please enter a page number between 1 and {total_pages}", type='negative')
             except ValueError:
-                ui.notify("请输入有效的页码数字", type='negative')
+                ui.notify("Please enter a valid page number", type='negative')
         
         prev_button.on_click(go_to_previous)
         next_button.on_click(go_to_next)
