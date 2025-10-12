@@ -4,7 +4,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 from sqlalchemy import create_engine, text
 
-from .models.user import Base, User, UserRepository, get_user_repository
+from .models.user import Base, UserRepository, get_user_repository
 
 from .api import app
 

@@ -25,8 +25,7 @@ print(f"Connecting to database: {host}:5432, user: {os.environ['DATABASE_USER']}
 # Add project root directory to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from src.shared.database import get_db
-from src.user_service.models.user import UserRepository
+from src.shared.database import get_db  # noqa: E402
 
 async def add_test_users():
     """Add 20,000 test users"""
@@ -34,7 +33,6 @@ async def add_test_users():
     
     # Get database session
     db = next(get_db())
-    user_repo = UserRepository(db)
     
     try:
         # Batch insert user data

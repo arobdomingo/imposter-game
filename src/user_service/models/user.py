@@ -25,7 +25,7 @@ class UserRepository:
 
     async def create(self, name: str) -> User:
         try:
-            result = self.session.execute(insert(User), [{"name": name}])
+            self.session.execute(insert(User), [{"name": name}])
             self.session.commit()
             return User(name=name)
         except IntegrityError:
@@ -33,7 +33,6 @@ class UserRepository:
             raise
 
     async def delete(self, name: str) -> None:
-        user = await self.get_by_name(name)
         stmt = delete(User).where(User.name == name)
         result = self.session.execute(stmt)
         self.session.commit()

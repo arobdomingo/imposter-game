@@ -1,8 +1,5 @@
-from typing import List
 from fastapi import FastAPI, Depends, Response, Query
-from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
-from pydantic import TypeAdapter
 import logging
 import math
 
@@ -18,7 +15,7 @@ async def create_user(user: UserSchema, response: Response, user_repo: UserRepos
     try:
         new_user = await user_repo.create(user.name)
         return {"user": UserSchema.from_db_model(new_user)}
-    except IntegrityError as e:
+    except IntegrityError:
         response.status_code = 409
         return {"detail": "Item already exists"}
 
