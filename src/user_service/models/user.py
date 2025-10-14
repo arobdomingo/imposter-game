@@ -1,7 +1,9 @@
 from pydantic import BaseModel 
-from sqlalchemy import select, insert, delete, String
+from sqlalchemy import select, insert, delete, String, func
 from sqlalchemy.orm import declarative_base, Session, mapped_column, Mapped
+from sqlalchemy.exc import IntegrityError
 from fastapi import Depends
+from typing import Tuple
 
 from shared.database import get_db
 
@@ -22,9 +24,13 @@ class UserRepository:
         self.session = session
 
     async def create(self, name: str) -> User:
-        result = self.session.execute(insert(User), [{"name": name}])
-        self.session.commit()
-        return User(name=name)
+        try:
+            result = self.session.execute(insert(User), [{"name": name}])
+            self.session.commit()
+            return User(name=name)
+        except IntegrityError:
+            self.session.rollback()
+            raise
 
     async def delete(self, name: str) -> None:
         user = await self.get_by_name(name)
@@ -38,9 +44,26 @@ class UserRepository:
         users = self.session.scalars(select(User)).all()
         return users
 
+    async def get_paginated(self, page: int = 1, page_size: int = 50) -> Tuple[list[User], int]:
+        """Get paginated users with total count"""
+        # Calculate offset
+        offset = (page - 1) * page_size
+        
+        # Get total count
+        total_count = self.session.scalar(select(func.count(User.name)))
+        
+        # Get paginated users
+        users = self.session.scalars(
+            select(User)
+            .offset(offset)
+            .limit(page_size)
+        ).all()
+        
+        return list(users), total_count
+
     async def get_by_name(self, name: str) -> User:
         """Get user by name"""
-        user = next((u for u in await self.get_all() if u.name == name), None)
+        user = self.session.scalar(select(User).where(User.name == name))
         return user
 
 def get_user_repository(db: Session = Depends(get_db)) -> UserRepository:
@@ -57,4 +80,15 @@ class UserSchema(BaseModel):
     def from_db_model(cls, user: User) -> "UserSchema":
         """Create a UserSchema from a User"""
         return cls(name=user.name)
+
+
+class PaginatedUsersResponse(BaseModel):
+    """
+    Response model for paginated users
+    """
+    users: list[UserSchema]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
 

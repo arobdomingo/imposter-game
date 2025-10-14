@@ -5,6 +5,7 @@ from pydantic import parse_obj_as
 from contextlib import contextmanager
 import logging
 import copy
+from sqlalchemy.exc import IntegrityError
 
 
 from user_service.models.user import UserRepository, UserSchema, get_user_repository
@@ -12,52 +13,147 @@ from user_service.models.user import UserRepository, UserSchema, get_user_reposi
 
 logger = logging.getLogger('uvicorn.error')
 
+# Global state for pagination
+current_page = 1
+current_page_size = 50
+
 @ui.refreshable
 async def user_list(user_repo: UserRepository) -> None:
-
-    user_models = await user_repo.get_all()
-    users = []
-    for model in user_models:
-        users.append(UserSchema.from_db_model(model).model_dump())
-
-    ui.label("All Users")
+    global current_page, current_page_size
+    # Get paginated users
+    user_models, total_count = await user_repo.get_paginated(current_page, current_page_size)
+    users = [UserSchema.from_db_model(model).model_dump() for model in user_models]
+    
+    # Calculate pagination info
+    total_pages = (total_count + current_page_size - 1) // current_page_size if total_count > 0 else 0
+    
+    ui.label(f"Users (Page {current_page} of {total_pages}, Total: {total_count})")
 
     selected = []
     async def delete():
-        global selected
-        for user in selected:
-            result = await user_repo.delete(user['name'])
-            if result.rowcount > 0:
-                ui.notify(f"Deleted user '{user['name']}'")
-            else:
-                ui.notify(f"Unable to delete user `{user['name']}'")
-            # have to refresh to see updates???
+        try:
+            deleted_users = []
+            for user in selected:
+                result = await user_repo.delete(user['name'])
+                if result.rowcount > 0:
+                    deleted_users.append(user['name'])
+                    ui.notify(f"Deleted user '{user['name']}'", type='positive')
+                else:
+                    ui.notify(f"Unable to delete user '{user['name']}'", type='negative')
+            
+            # Refresh the user list to show the updates
+            user_list.refresh()
+            
+            # Clear selected state
+            selected.clear()
+            button.disable()
+            
+        except Exception as e:
+            ui.notify(f"Error deleting users: {str(e)}", type='negative')
+            user_list.refresh()
+            selected.clear()
+            button.disable()
 
     button = ui.button(on_click=delete, icon='delete')
 
     button.disable()
     def toggle_delete_button(e):
-        global selected
-        selected = e.selection
-        if len(e.selection) > 0:
+        selected.clear()
+        selected.extend(e.selection)
+        if len(selected) > 0:
             button.enable()
         else:
             button.disable()
-
 
     columns = [{'name': 'name', 'label': 'Name', 'field': 'name', 'required': True, 'align': 'left'}]
     table = ui.table(columns=columns, rows=users,
                      row_key='name',
                      on_select=toggle_delete_button)
     table.set_selection('multiple')
+    
+    # Pagination controls
+    with ui.row().classes('w-full justify-center items-center gap-2 mt-4'):
+        # Page size selector
+        page_size_select = ui.select(
+            options=[10, 25, 50, 100], 
+            value=current_page_size,
+            label='Page Size'
+        ).classes('w-24')
+        
+        # Previous page button
+        prev_button = ui.button('Previous', icon='chevron_left')
+        if current_page <= 1:
+            prev_button.disable()
+        
+        # Page info
+        ui.label(f"Page {current_page} of {total_pages}")
+        
+        # Page jump input
+        page_input = ui.input(
+            label='Go to page',
+            placeholder=f'1-{total_pages}',
+            value=str(current_page)
+        ).classes('w-20')
+        
+        # Jump button
+        jump_button = ui.button('Go', icon='arrow_forward')
+        
+        # Next page button
+        next_button = ui.button('Next', icon='chevron_right')
+        if current_page >= total_pages:
+            next_button.disable()
+        
+        # Page navigation handlers
+        async def go_to_previous():
+            global current_page
+            if current_page > 1:
+                current_page -= 1
+                user_list.refresh()
+        
+        async def go_to_next():
+            global current_page
+            if current_page < total_pages:
+                current_page += 1
+                user_list.refresh()
+        
+        async def change_page_size():
+            global current_page, current_page_size
+            current_page = 1
+            current_page_size = page_size_select.value
+            user_list.refresh()
+        
+        async def jump_to_page():
+            global current_page
+            try:
+                target_page = int(page_input.value)
+                if 1 <= target_page <= total_pages:
+                    current_page = target_page
+                    user_list.refresh()
+                else:
+                    ui.notify(f"请输入 1 到 {total_pages} 之间的页码", type='negative')
+            except ValueError:
+                ui.notify("请输入有效的页码数字", type='negative')
+        
+        prev_button.on_click(go_to_previous)
+        next_button.on_click(go_to_next)
+        jump_button.on_click(jump_to_page)
+        page_size_select.on('update:model-value', change_page_size)
 
 
 @ui.page("/")
 async def index(user_repo: UserRepository = Depends(get_user_repository)):
     async def create() -> None:
-        await user_repo.create(name=name.value)
-        name.value = ""
-        user_list.refresh()
+        try:
+            await user_repo.create(name=name.value)
+            ui.notify(f"User: '{name.value}' created successfully", type='positive')
+            name.value = ""
+            user_list.refresh()
+        except IntegrityError:
+            ui.notify(f"User: '{name.value}' already exists", type='negative')
+            name.value = ""
+        except Exception as e:
+            ui.notify(f"Error creating user: {str(e)}", type='negative')
+            name.value = ""
 
     with ui.column().classes('mx-auto'):
         # tailwind
