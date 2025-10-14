@@ -11,7 +11,14 @@ import logging
 import math
 
 from admin.main import ui
-from .models.user import UserRepository, UserSchema,UserCreateSchema ,PaginatedUsersResponse, get_user_repository
+from .models.user import (
+    UserRepository,
+    UserSchema,
+    UserCreateSchema,
+    UserResponseSchema,
+    PaginatedUsersResponse,
+    get_user_repository,
+)
 
 logger = logging.getLogger("uvicorn.error")
 app = FastAPI()
@@ -132,7 +139,9 @@ async def list_users(
 @app.get("/users/{id}")
 async def get_user(id: int, user_repo: UserRepository = Depends(get_user_repository)):
     user = await user_repo.get_by_id(id)
-    return {"user": UserSchema.from_db_model(user)}
+    if user:
+        return {"user": UserResponseSchema.from_db_model(user)}
+    return {"user": None}
 
 
 ui.run_with(app, mount_path="/admin", favicon="👤", title="User Admin")

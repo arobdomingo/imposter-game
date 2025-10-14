@@ -4,7 +4,7 @@ import logging
 from sqlalchemy.exc import IntegrityError
 
 
-from user_service.models.user import UserRepository, UserSchema, get_user_repository
+from user_service.models.user import UserRepository, UserResponseSchema, get_user_repository
 
 
 logger = logging.getLogger("uvicorn.error")
@@ -21,7 +21,7 @@ async def user_list(user_repo: UserRepository) -> None:
     user_models, total_count = await user_repo.get_paginated(
         current_page, current_page_size
     )
-    users = [UserSchema.from_db_model(model).model_dump() for model in user_models]
+    users = [UserResponseSchema.from_db_model(model).model_dump() for model in user_models]
 
     # Calculate pagination info
     total_pages = (
@@ -40,10 +40,10 @@ async def user_list(user_repo: UserRepository) -> None:
             for user in selected:
                 result = await user_repo.delete(user['id'])
                 if result.rowcount > 0:
-                    deleted_users.append(user['id'])
-                    ui.notify(f"Deleted user '{user['id']}'", type='positive')
+                    deleted_users.append(user['name'])
+                    ui.notify(f"Deleted user '{user['name']}'", type='positive')
                 else:
-                    ui.notify(f"Unable to delete user '{user['id']}'", type='negative')
+                    ui.notify(f"Unable to delete user '{user['name']}'", type='negative')
             
             # Refresh the user list to show the updates
             user_list.refresh()

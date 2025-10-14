@@ -49,9 +49,12 @@ def created_user(session):
 def test_read_user(client, created_user):
     response = client.get("/users/1")
     assert response.status_code == 200
-    assert response.json() == {
-        "user": {"id": 1, "name": "foo", "email": "foo@example.com", "password": "foopass"}
-    }
+    user_response = response.json()["user"]
+    assert user_response["id"] == 1
+    assert user_response["name"] == "foo"
+    assert user_response["email"] == "foo@example.com"
+    # Password should NOT be in response (security)
+    assert "password" not in user_response
 
 def test_create_user(client):
     response = client.post(
@@ -59,9 +62,12 @@ def test_create_user(client):
         json={"name": "foobar", "email": "foobar@example.com", "password": "foobar"}
     )
     assert response.status_code == 201
-    assert response.json() == {
-        "user": {"id": 1, "name": "foobar", "email": "foobar@example.com", "password": "foobar"}
-    }
+    user_response = response.json()["user"]
+    assert user_response["id"] == 1
+    assert user_response["name"] == "foobar"
+    assert user_response["email"] == "foobar@example.com"
+    # Password should NOT be in response (security)
+    assert "password" not in user_response
 
 
 def test_create_existing_user(client, created_user):

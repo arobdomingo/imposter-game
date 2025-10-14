@@ -1,10 +1,9 @@
 from pydantic import BaseModel
-from sqlalchemy import select, insert, delete, String, func
+from sqlalchemy import select, delete, String, func, Integer
 from sqlalchemy.orm import declarative_base, Session, mapped_column, Mapped
 from sqlalchemy.exc import IntegrityError
 from fastapi import Depends
 from typing import Tuple
-from sqlalchemy import Integer
 
 from shared.database import get_db
 
@@ -43,6 +42,7 @@ class UserRepository:
             raise
 
     async def delete(self, id: int) -> None:
+        """Delete user by id"""
         stmt = delete(User).where(User.id == id)
         result = self.session.execute(stmt)
         self.session.commit()
@@ -90,13 +90,24 @@ class UserSchema(BaseModel):
     id: int
     name: str
     email: str
-    password: str
-
 
     @classmethod
     def from_db_model(cls, user: User) -> "UserSchema":
-        """Create a UserSchema from a User"""
-        return cls(id=user.id, name=user.name, email=user.email, password=user.password)
+        """Create a UserSchema from a User (without password for security)"""
+        return cls(id=user.id, name=user.name, email=user.email)
+
+
+class UserResponseSchema(BaseModel):
+    """Schema for user responses (without password for security)"""
+    id: int
+    name: str
+    email: str
+
+    @classmethod
+    def from_db_model(cls, user: User) -> "UserResponseSchema":
+        """Create a UserResponseSchema from a User"""
+        return cls(id=user.id, name=user.name, email=user.email)
+
 
 class UserCreateSchema(BaseModel):
     """Schema for creating a user (without id)"""
