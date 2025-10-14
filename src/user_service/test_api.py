@@ -40,25 +40,28 @@ def client(repo):
 
 @pytest.fixture(scope="function")
 def created_user(session):
-    user_data = {"name": "foo"}
-    session.execute(text("INSERT INTO users (name) VALUES (:name)"), user_data)
+    user_data = {"name": "foo", "email": "foo@example.com", "password": "foopass"}
+    session.execute(text("INSERT INTO users (name, email, password) VALUES (:name, :email, :password)"), user_data)
     session.commit()
     return user_data
 
 
 def test_read_user(client, created_user):
-    response = client.get("/users/foo")
+    response = client.get("/users/1")
     assert response.status_code == 200
-    assert response.json() == {"user": created_user}
-
+    assert response.json() == {
+        "user": {"id": 1, "name": "foo", "email": "foo@example.com", "password": "foopass"}
+    }
 
 def test_create_user(client):
     response = client.post(
         "/users/",
-        json={"name": "foobar"},
+        json={"name": "foobar", "email": "foobar@example.com", "password": "foobar"}
     )
     assert response.status_code == 201
-    assert response.json() == {"user": {"name": "foobar"}}
+    assert response.json() == {
+        "user": {"id": 1, "name": "foobar", "email": "foobar@example.com", "password": "foobar"}
+    }
 
 
 def test_create_existing_user(client, created_user):

@@ -4,6 +4,7 @@ from sqlalchemy.orm import declarative_base, Session, mapped_column, Mapped
 from sqlalchemy.exc import IntegrityError
 from fastapi import Depends
 from typing import Tuple
+from sqlalchemy import Integer
 
 from shared.database import get_db
 
@@ -16,7 +17,10 @@ class User(Base):
     """
 
     __tablename__ = "users"
-    name: Mapped[str] = mapped_column(String, primary_key=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String, primary_key=False, unique=True)
+    email: Mapped[str] = mapped_column(String, primary_key=False, unique=True)
+    password: Mapped[str] = mapped_column(String, primary_key=False, unique=False)
 
 
 class UserRepository:
@@ -27,17 +31,19 @@ class UserRepository:
     def __init__(self, session: Session):
         self.session = session
 
-    async def create(self, name: str) -> User:
+    async def create(self, name: str, email: str, password: str) -> User:
         try:
-            self.session.execute(insert(User), [{"name": name}])
+            new_user = User(name=name, email=email, password=password)
+            self.session.add(new_user)
             self.session.commit()
-            return User(name=name)
+            self.session.refresh(new_user)  # This retrieves the auto-generated id
+            return new_user
         except IntegrityError:
             self.session.rollback()
             raise
 
-    async def delete(self, name: str) -> None:
-        stmt = delete(User).where(User.name == name)
+    async def delete(self, id: int) -> None:
+        stmt = delete(User).where(User.id == id)
         result = self.session.execute(stmt)
         self.session.commit()
         return result
@@ -67,6 +73,11 @@ class UserRepository:
         user = self.session.scalar(select(User).where(User.name == name))
         return user
 
+    async def get_by_id(self, id: int) -> User:
+        """Get user by id"""
+        user = self.session.scalar(select(User).where(User.id == id))
+        return user
+    
 
 def get_user_repository(db: Session = Depends(get_db)) -> UserRepository:
     return UserRepository(db)
@@ -76,13 +87,22 @@ class UserSchema(BaseModel):
     """
     The application's view of users. This is how the API represents users (as opposed to how the database represents them).
     """
-
+    id: int
     name: str
+    email: str
+    password: str
+
 
     @classmethod
     def from_db_model(cls, user: User) -> "UserSchema":
         """Create a UserSchema from a User"""
-        return cls(name=user.name)
+        return cls(id=user.id, name=user.name, email=user.email, password=user.password)
+
+class UserCreateSchema(BaseModel):
+    """Schema for creating a user (without id)"""
+    name: str
+    email: str
+    password: str
 
 
 class PaginatedUsersResponse(BaseModel):

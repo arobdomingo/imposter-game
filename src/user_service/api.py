@@ -11,12 +11,7 @@ import logging
 import math
 
 from admin.main import ui
-from .models.user import (
-    UserRepository,
-    UserSchema,
-    PaginatedUsersResponse,
-    get_user_repository,
-)
+from .models.user import UserRepository, UserSchema,UserCreateSchema ,PaginatedUsersResponse, get_user_repository
 
 logger = logging.getLogger("uvicorn.error")
 app = FastAPI()
@@ -105,13 +100,9 @@ async def get_avatar(name: str, user_repo=Depends(get_user_repository)):
 
 
 @app.post("/users/", status_code=201)
-async def create_user(
-    user: UserSchema,
-    response: Response,
-    user_repo: UserRepository = Depends(get_user_repository),
-):
+async def create_user(user: UserCreateSchema, response: Response, user_repo: UserRepository = Depends(get_user_repository)):
     try:
-        new_user = await user_repo.create(user.name)
+        new_user = await user_repo.create(user.name, user.email, user.password)
         return {"user": UserSchema.from_db_model(new_user)}
     except IntegrityError:
         response.status_code = 409
@@ -138,11 +129,10 @@ async def list_users(
         total_pages=total_pages,
     )
 
-
-@app.get("/users/{name}")
-async def get_user(name: str, user_repo: UserRepository = Depends(get_user_repository)):
-    user = await user_repo.get_by_name(name)
-    return {"user": user}
+@app.get("/users/{id}")
+async def get_user(id: int, user_repo: UserRepository = Depends(get_user_repository)):
+    user = await user_repo.get_by_id(id)
+    return {"user": UserSchema.from_db_model(user)}
 
 
 ui.run_with(app, mount_path="/admin", favicon="👤", title="User Admin")
