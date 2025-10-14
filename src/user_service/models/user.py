@@ -1,4 +1,4 @@
-from pydantic import BaseModel 
+from pydantic import BaseModel
 from sqlalchemy import select, insert, delete, String, func
 from sqlalchemy.orm import declarative_base, Session, mapped_column, Mapped
 from sqlalchemy.exc import IntegrityError
@@ -9,15 +9,19 @@ from sqlalchemy import Integer
 from shared.database import get_db
 
 Base = declarative_base()
+
+
 class User(Base):
     """
     User model used by SQLAlchemy to interact with the database. When you look up a user in the database, you will get an instance of this class back. This is the database's view of users.
     """
+
     __tablename__ = "users"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String, primary_key=False, unique=True)
     email: Mapped[str] = mapped_column(String, primary_key=False, unique=True)
     password: Mapped[str] = mapped_column(String, primary_key=False, unique=False)
+
 
 class UserRepository:
     """
@@ -49,21 +53,19 @@ class UserRepository:
         users = self.session.scalars(select(User)).all()
         return users
 
-    async def get_paginated(self, page: int = 1, page_size: int = 50) -> Tuple[list[User], int]:
+    async def get_paginated(
+        self, page: int = 1, page_size: int = 50
+    ) -> Tuple[list[User], int]:
         """Get paginated users with total count"""
         # Calculate offset
         offset = (page - 1) * page_size
-        
+
         # Get total count
         total_count = self.session.scalar(select(func.count(User.name)))
-        
+
         # Get paginated users
-        users = self.session.scalars(
-            select(User)
-            .offset(offset)
-            .limit(page_size)
-        ).all()
-        
+        users = self.session.scalars(select(User).offset(offset).limit(page_size)).all()
+
         return list(users), total_count
 
     async def get_by_name(self, name: str) -> User:
@@ -107,9 +109,9 @@ class PaginatedUsersResponse(BaseModel):
     """
     Response model for paginated users
     """
+
     users: list[UserSchema]
     total: int
     page: int
     page_size: int
     total_pages: int
-
