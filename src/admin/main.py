@@ -1,8 +1,8 @@
-from fastapi import Depends
+import asyncio
+from fastapi import Depends, APIRouter
 from nicegui import ui
 import logging
 from sqlalchemy.exc import IntegrityError
-
 
 from user_service.models.user import (
     UserRepository,
@@ -10,14 +10,19 @@ from user_service.models.user import (
     get_user_repository,
 )
 
+# Admin password protection
+ADMIN_PASSWORD = "admin123"
 
 logger = logging.getLogger("uvicorn.error")
+router = APIRouter()
 
 # Global state for pagination
 current_page = 1
 current_page_size = 50
+authenticated = False
 
 
+# ------------------ UI COMPONENTS ------------------
 @ui.refreshable
 async def user_list(user_repo: UserRepository) -> None:
     global current_page, current_page_size
@@ -162,34 +167,59 @@ async def user_list(user_repo: UserRepository) -> None:
         page_size_select.on("update:model-value", change_page_size)
 
 
-@ui.page("/")
-async def index(user_repo: UserRepository = Depends(get_user_repository)):
-    async def create() -> None:
-        try:
-            await user_repo.create(
-                name=name.value, email=email.value, password=password.value
-            )
-            ui.notify(f"User: '{name.value}' created successfully", type="positive")
-            name.value = ""
-            email.value = ""
-            password.value = ""
-            user_list.refresh()
-        except IntegrityError:
-            ui.notify(f"User: '{name.value}' already exists", type="negative")
-            name.value = ""
-            email.value = ""
-            password.value = ""
-        except Exception as e:
-            ui.notify(f"Error creating user: {str(e)}", type="negative")
-            name.value = ""
-            email.value = ""
-            password.value = ""
+async def show_admin_ui(user_repo: UserRepository, layout):
+    """Display the main admin interface after successful login"""
+    layout.clear()
+    with layout:
 
-    with ui.column().classes("mx-auto"):
-        # tailwind
+        async def create() -> None:
+            try:
+                await user_repo.create(
+                    name=name.value, email=email.value, password=password.value
+                )
+                ui.notify(f"User: '{name.value}' created successfully", type="positive")
+                name.value = ""
+                email.value = ""
+                password.value = ""
+                user_list.refresh()
+            except IntegrityError:
+                ui.notify(f"User: '{name.value}' already exists", type="negative")
+                name.value = ""
+                email.value = ""
+                password.value = ""
+            except Exception as e:
+                ui.notify(f"Error creating user: {str(e)}", type="negative")
+                name.value = ""
+                email.value = ""
+                password.value = ""
+
         with ui.row().classes("w-full items-center px-4"):
             name = ui.input(label="Name")
             email = ui.input(label="Email")
             password = ui.input(label="Password")
             ui.button(on_click=create, icon="add")
         await user_list(user_repo)
+
+
+# ------------------ MAIN ADMIN PAGE ------------------
+@ui.page("/")
+async def index(user_repo: UserRepository = Depends(get_user_repository)):
+    """Admin entry point with password protection"""
+    layout = ui.column().classes("mx-auto")
+
+    with layout:
+        ui.label("Admin Login").classes("text-xl")
+        password_input = ui.input(label="Enter Admin Password", password=True)
+        login_button = ui.button("Login")
+
+    def try_login():
+        if password_input.value == ADMIN_PASSWORD:
+            ui.notify("Access granted", type="positive")
+            asyncio.create_task(show_admin_ui(user_repo, layout))
+        else:
+            ui.notify("Incorrect password", type="negative")
+
+    login_button.on("click", try_login)
+
+
+__all__ = ["router", "ui"]
