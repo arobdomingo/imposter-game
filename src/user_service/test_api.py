@@ -83,3 +83,27 @@ def test_create_existing_user(client, created_user):
     )
     assert response.status_code == 409
     assert response.json() == {"detail": "Item already exists"}
+
+
+def test_upload_and_get_avatar(client, created_user):
+    """Test uploading and retrieving a user avatar"""
+    from PIL import Image
+    from io import BytesIO
+    
+    # Create a test image
+    img = Image.new("RGB", (100, 100), color="red")
+    img_bytes = BytesIO()
+    img.save(img_bytes, format="JPEG")
+    img_bytes.seek(0)
+    
+    # Upload the avatar
+    response = client.put(
+        "/users/1/avatar",
+        files={"file": ("test.jpg", img_bytes, "image/jpeg")}
+    )
+    assert response.status_code == 201
+    
+    # Get the avatar
+    response = client.get("/users/1/avatar")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/jpeg"

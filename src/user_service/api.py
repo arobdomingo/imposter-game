@@ -29,11 +29,12 @@ AVATAR_DIRECTORY = os.getenv(
 os.makedirs(AVATAR_DIRECTORY, exist_ok=True)  # create media/avatars path if required
 
 
-@app.put("/users/{name}/avatar", status_code=201)
+@app.put("/users/{id}/avatar", status_code=201)
 async def upload_avatar(
-    name: str, file: UploadFile = File(...), user_repo=Depends(get_user_repository)
-):  # parameters are the name (key), a required UploadFile, and database dependency
-    user = await user_repo.get_by_name(name)
+    id: int, file: UploadFile = File(...), user_repo=Depends(get_user_repository)
+):
+    """Upload a profile picture for a user"""
+    user = await user_repo.get_by_id(id)
     if not user:
         raise HTTPException(404, "User not found")
 
@@ -41,11 +42,11 @@ async def upload_avatar(
     image = process_and_crop_image(raw_image)
 
     destination = os.path.join(
-        AVATAR_DIRECTORY, f"{name}_avatar.jpg"
-    )  # create string for file path to the  user's JPEG avatar in the avatar directory (adding a file)
-    image.save(
-        destination, format="JPEG", quality=80, optimize=True
-    )  # save image at that path (in directory)
+        AVATAR_DIRECTORY, f"{id}_avatar.jpg"
+    )
+    image.save(destination, format="JPEG", quality=80, optimize=True)
+    
+    return {"message": "Avatar uploaded successfully"}
 
 
 def process_and_crop_image(raw_image):
@@ -67,12 +68,11 @@ def process_and_crop_image(raw_image):
     side = min(w, h)
     left = (w - side) // 2
     top = (h - side) // 2
-    image.crop((left, top, left + side, top + side))
-    # crop to a centered square with the length of the image's smallest side
+    # Crop to a centered square with the length of the image's smallest side
+    image = image.crop((left, top, left + side, top + side))
 
-    image = image.resize(
-        (standard_size, standard_size)
-    )  # resize image to fixed P x P dimensions
+    # Resize image to fixed 512x512 dimensions to save disk space
+    image = image.resize((standard_size, standard_size))
 
     if image.mode == "RGBA" or image.mode == "LA":  # if image is transparent
         background = Image.new(
@@ -91,15 +91,14 @@ def process_and_crop_image(raw_image):
     return image
 
 
-@app.get("/users/{name}/avatar")
-async def get_avatar(name: str, user_repo=Depends(get_user_repository)):
-    user = await user_repo.get_by_name(name)
+@app.get("/users/{id}/avatar")
+async def get_avatar(id: int, user_repo=Depends(get_user_repository)):
+    """Get a user's profile picture"""
+    user = await user_repo.get_by_id(id)
     if not user:
         raise HTTPException(404, "User not found")
 
-    path = os.path.join(
-        AVATAR_DIRECTORY, f"{name}_avatar.jpg"
-    )  # create string for file path to the  user's JPEG avatar
+    path = os.path.join(AVATAR_DIRECTORY, f"{id}_avatar.jpg")
     if not os.path.isfile(path):
         raise HTTPException(404, "Avatar not found")
 
