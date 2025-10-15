@@ -107,6 +107,33 @@ def test_upload_and_get_avatar(client, created_user):
     assert response.status_code == 200
     assert response.headers["content-type"] == "image/jpeg"
 
+
+def test_delete_user(client, created_user):
+    """Test deleting a user account"""
+    response = client.post(
+        "/users/delete",
+        json={"id": 1, "name": "foo", "email": "foo@example.com"},
+    )
+    assert response.status_code == 200
+    assert response.json() == {
+        "message": "User deleted successfully",
+        "user": {"name": "foo"},
+    }
+    # Verify user is actually deleted
+    get_response = client.get("/users/1")
+    assert get_response.json() == {"user": None}
+
+
+def test_delete_nonexistent_user(client):
+    """Test deleting non-existent user"""
+    response = client.post(
+        "/users/delete",
+        json={"id": 999, "name": "nonexistent", "email": "none@example.com"},
+    )
+    assert response.status_code == 404
+    assert response.json() == {"detail": "User not found"}
+
+
 # Friendship Tests
 
 def test_send_friend_request(session, client):
@@ -133,4 +160,4 @@ def test_accept_friend_request(session, client):
 def test_accept_nonexistent_friendship(client):
     response = client.post("/friendships/accept", params={"requester_id": 99, "receiver_id": 100})
     assert response.status_code == 200
-    assert response.json() == {"message": "Friend request accepted"}  
+    assert response.json() == {"message": "Friend request accepted"}

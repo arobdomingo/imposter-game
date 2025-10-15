@@ -1,10 +1,21 @@
-import os
-from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-# Load .env from project root
-load_dotenv()
+import os
+
+engine = None
+
+
+def get_db():
+    global engine
+    if not engine:
+        host = os.environ["DATABASE_HOST"]
+        username = os.environ["DATABASE_USER"]
+        password = os.environ["DATABASE_PASSWORD"]
+
+        DATABASE_URL = f"postgresql+psycopg2://{username}:{password}@{host}:5432/"
+
+        engine = create_engine(DATABASE_URL)
 
 host = os.environ.get("POSTGRES_HOST", "localhost")
 username = os.environ.get('POSTGRES_USER', 'group7')

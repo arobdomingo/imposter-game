@@ -17,16 +17,19 @@ config = context.config
 
 # Inject environment variables into alembic.ini
 section = config.config_ini_section
-config.set_section_option(section, "DATABASE_HOST", os.environ.get("POSTGRES_HOST", "db"))
-config.set_section_option(section, "DATABASE_USER", os.environ.get("POSTGRES_USER", "group7"))
-config.set_section_option(section, "DATABASE_PASSWORD", os.environ.get("POSTGRES_PASSWORD", "123456789"))
+config.set_section_option(section, "DATABASE_HOST", os.environ.get("POSTGRES_HOST"))
+config.set_section_option(section, "DATABASE_USER", os.environ.get("POSTGRES_USER"))
+config.set_section_option(
+    section, "DATABASE_PASSWORD", os.environ.get("POSTGRES_PASSWORD")
+)
 
 # Logging
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # Import metadata
-from user_service.models.user import Base
+from user_service.models.user import Base  # noqa: E402
+
 target_metadata = Base.metadata
 
 def run_migrations_offline() -> None:
