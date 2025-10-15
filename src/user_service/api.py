@@ -41,11 +41,9 @@ async def upload_avatar(
     raw_image = await file.read()
     image = process_and_crop_image(raw_image)
 
-    destination = os.path.join(
-        AVATAR_DIRECTORY, f"{id}_avatar.jpg"
-    )
+    destination = os.path.join(AVATAR_DIRECTORY, f"{id}_avatar.jpg")
     image.save(destination, format="JPEG", quality=80, optimize=True)
-    
+
     return {"message": "Avatar uploaded successfully"}
 
 
