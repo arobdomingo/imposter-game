@@ -20,6 +20,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    """Upgrade schema."""
     op.create_table(
         "users",
         sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
@@ -27,10 +28,13 @@ def upgrade() -> None:
         sa.Column("password", sa.String(), nullable=False),
         sa.Column("email", sa.String(), nullable=False, unique=True),
     )
-    op.create_index("users_id", "users", ["id"])
+    # Create indexes for better query performance
+    op.create_index("ix_users_name", "users", ["name"])
+    op.create_index("ix_users_email", "users", ["email"])
 
 
 def downgrade() -> None:
     """Downgrade schema."""
-    op.drop_index("users_id")
+    op.drop_index("ix_users_email", "users")
+    op.drop_index("ix_users_name", "users")
     op.drop_table("users")
