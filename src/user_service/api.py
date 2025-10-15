@@ -147,5 +147,16 @@ async def get_user(id: int, user_repo: UserRepository = Depends(get_user_reposit
         return {"user": UserResponseSchema.from_db_model(user)}
     return {"user": None}
 
+@app.post("/users/delete", status_code=200)
+async def delete_user(
+    user: UserSchema,
+    user_repo: UserRepository = Depends(get_user_repository),
+):
+     # Check if user exists
+    existing_user = await user_repo.get_by_name(user.name)
+    if not existing_user:
+        raise HTTPException(404, "User not found")
+     # Delete user from database
+    await user_repo.delete(existing_user.id)
+    return {"message": "User deleted successfully", "user": {"name": user.name}} 
 
-ui.run_with(app, mount_path="/admin", favicon="👤", title="User Admin")
