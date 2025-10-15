@@ -159,4 +159,5 @@ async def delete_user(
     await user_repo.delete(existing_user.id)
     return {"message": "User deleted successfully", "user": {"name": user.name}}
 
+
 ui.run_with(app, mount_path="/admin", favicon="👤", title="User Admin")
