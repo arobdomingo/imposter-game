@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import create_engine, text
 
 from .models.user import Base, UserRepository, get_user_repository
+from .models.friendship import Friendship, FriendshipRepository, get_friendship_repository  # noqa: F401 - Imported to register table
 
 from .api import app
 
@@ -32,10 +33,17 @@ def repo(session):
 
 
 @pytest.fixture(scope="function")
-def client(repo):
+def friendship_repo(session):
+    yield FriendshipRepository(session)
+
+
+@pytest.fixture(scope="function")
+def client(repo, friendship_repo):
     app.dependency_overrides[get_user_repository] = lambda: repo
+    app.dependency_overrides[get_friendship_repository] = lambda: friendship_repo
     with TestClient(app) as c:
         yield c
+    app.dependency_overrides.clear()
 
 
 @pytest.fixture(scope="function")

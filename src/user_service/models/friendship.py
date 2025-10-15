@@ -32,18 +32,15 @@ class FriendshipRepository:
         self.session = session
 
     async def send_request(self, requester_id: int, receiver_id: int) -> None:
-        requester_str = str(requester_id)
-        receiver_str = str(receiver_id)
-
         existing = self.session.scalar(
             select(Friendship).where(
                 (
-                    (Friendship.requester == requester_str)
-                    & (Friendship.receiver == receiver_str)
+                    (Friendship.requester == requester_id)
+                    & (Friendship.receiver == receiver_id)
                 )
                 | (
-                    (Friendship.requester == receiver_str)
-                    & (Friendship.receiver == requester_str)
+                    (Friendship.requester == receiver_id)
+                    & (Friendship.receiver == requester_id)
                 )
             )
         )
@@ -57,8 +54,8 @@ class FriendshipRepository:
             insert(Friendship),
             [
                 {
-                    "requester": requester_str,
-                    "receiver": receiver_str,
+                    "requester": requester_id,
+                    "receiver": receiver_id,
                     "status": "pending",
                 }
             ],
@@ -67,18 +64,15 @@ class FriendshipRepository:
         print(f"[DB] Friendship request sent from {requester_id} to {receiver_id}")
 
     async def accept_request(self, requester_id: int, receiver_id: int) -> None:
-        requester_str = str(requester_id)
-        receiver_str = str(receiver_id)
-
         existing = self.session.scalar(
             select(Friendship).where(
                 (
-                    (Friendship.requester == requester_str)
-                    & (Friendship.receiver == receiver_str)
+                    (Friendship.requester == requester_id)
+                    & (Friendship.receiver == receiver_id)
                 )
                 | (
-                    (Friendship.requester == receiver_str)
-                    & (Friendship.receiver == requester_str)
+                    (Friendship.requester == receiver_id)
+                    & (Friendship.receiver == requester_id)
                 )
             )
         )
@@ -91,8 +85,8 @@ class FriendshipRepository:
         stmt = (
             update(Friendship)
             .where(
-                (Friendship.requester == requester_str)
-                & (Friendship.receiver == receiver_str)
+                (Friendship.requester == requester_id)
+                & (Friendship.receiver == receiver_id)
                 & (Friendship.status == "pending")
             )
             .values(status="accepted")
@@ -120,7 +114,7 @@ class FriendshipSchema(BaseModel):
     @classmethod
     def from_db_model(cls, friendship: Friendship) -> "FriendshipSchema":
         return cls(
-            requester=int(friendship.requester),
-            receiver=int(friendship.receiver),
+            requester=friendship.requester,
+            receiver=friendship.receiver,
             status=friendship.status,
         )
