@@ -77,7 +77,7 @@ class UserRepository:
         """Get user by id"""
         user = self.session.scalar(select(User).where(User.id == id))
         return user
-    
+
 
 def get_user_repository(db: Session = Depends(get_db)) -> UserRepository:
     return UserRepository(db)
@@ -87,6 +87,7 @@ class UserSchema(BaseModel):
     """
     The application's view of users. This is how the API represents users (as opposed to how the database represents them).
     """
+
     id: int
     name: str
     email: str
@@ -99,6 +100,7 @@ class UserSchema(BaseModel):
 
 class UserResponseSchema(BaseModel):
     """Schema for user responses (without password for security)"""
+
     id: int
     name: str
     email: str
@@ -111,6 +113,7 @@ class UserResponseSchema(BaseModel):
 
 class UserCreateSchema(BaseModel):
     """Schema for creating a user (without id)"""
+
     name: str
     email: str
     password: str
