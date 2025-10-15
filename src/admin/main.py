@@ -199,7 +199,6 @@ async def show_admin_ui(user_repo: UserRepository, layout):
             ui.button(on_click=create, icon="add")
         await user_list(user_repo)
 
-    return [user["name"] for user in users]
 
 # ------------------ MAIN ADMIN PAGE ------------------
 @ui.page("/")
