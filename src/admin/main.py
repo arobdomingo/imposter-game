@@ -171,6 +171,7 @@ async def show_admin_ui(user_repo: UserRepository, layout):
     """Display the main admin interface after successful login"""
     layout.clear()
     with layout:
+
         async def create() -> None:
             try:
                 await user_repo.create(
@@ -205,7 +206,7 @@ async def show_admin_ui(user_repo: UserRepository, layout):
 async def index(user_repo: UserRepository = Depends(get_user_repository)):
     """Admin entry point with password protection"""
     layout = ui.column().classes("mx-auto")
-    
+
     with layout:
         ui.label("Admin Login").classes("text-xl")
         password_input = ui.input(label="Enter Admin Password", password=True)
