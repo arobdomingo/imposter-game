@@ -107,7 +107,11 @@ async def get_avatar(name: str, user_repo=Depends(get_user_repository)):
 
 
 @app.post("/users/", status_code=201)
-async def create_user(user: UserCreateSchema, response: Response, user_repo: UserRepository = Depends(get_user_repository)):
+async def create_user(
+    user: UserCreateSchema,
+    response: Response,
+    user_repo: UserRepository = Depends(get_user_repository),
+):
     try:
         new_user = await user_repo.create(user.name, user.email, user.password)
         return {"user": UserSchema.from_db_model(new_user)}
@@ -135,6 +139,7 @@ async def list_users(
         page_size=page_size,
         total_pages=total_pages,
     )
+
 
 @app.get("/users/{id}")
 async def get_user(id: int, user_repo: UserRepository = Depends(get_user_repository)):

@@ -4,7 +4,11 @@ import logging
 from sqlalchemy.exc import IntegrityError
 
 
-from user_service.models.user import UserRepository, UserResponseSchema, get_user_repository
+from user_service.models.user import (
+    UserRepository,
+    UserResponseSchema,
+    get_user_repository,
+)
 
 
 logger = logging.getLogger("uvicorn.error")
@@ -21,7 +25,9 @@ async def user_list(user_repo: UserRepository) -> None:
     user_models, total_count = await user_repo.get_paginated(
         current_page, current_page_size
     )
-    users = [UserResponseSchema.from_db_model(model).model_dump() for model in user_models]
+    users = [
+        UserResponseSchema.from_db_model(model).model_dump() for model in user_models
+    ]
 
     # Calculate pagination info
     total_pages = (
@@ -38,13 +44,15 @@ async def user_list(user_repo: UserRepository) -> None:
         try:
             deleted_users = []
             for user in selected:
-                result = await user_repo.delete(user['id'])
+                result = await user_repo.delete(user["id"])
                 if result.rowcount > 0:
-                    deleted_users.append(user['name'])
-                    ui.notify(f"Deleted user '{user['name']}'", type='positive')
+                    deleted_users.append(user["name"])
+                    ui.notify(f"Deleted user '{user['name']}'", type="positive")
                 else:
-                    ui.notify(f"Unable to delete user '{user['name']}'", type='negative')
-            
+                    ui.notify(
+                        f"Unable to delete user '{user['name']}'", type="negative"
+                    )
+
             # Refresh the user list to show the updates
             user_list.refresh()
 
@@ -71,16 +79,21 @@ async def user_list(user_repo: UserRepository) -> None:
             button.disable()
 
     columns = [
-        {'name': 'id', 'label': 'ID', 'field': 'id', 'align': 'left'},
-        {'name': 'name', 'label': 'Name', 'field': 'name', 'required': True, 'align': 'left'},
-        {'name': 'email', 'label': 'Email', 'field': 'email', 'align': 'left'},
-        
-        ]
-    table = ui.table(columns=columns, rows=users,
-                     row_key='id',
-                     on_select=toggle_delete_button)
-    table.set_selection('multiple')
-    
+        {"name": "id", "label": "ID", "field": "id", "align": "left"},
+        {
+            "name": "name",
+            "label": "Name",
+            "field": "name",
+            "required": True,
+            "align": "left",
+        },
+        {"name": "email", "label": "Email", "field": "email", "align": "left"},
+    ]
+    table = ui.table(
+        columns=columns, rows=users, row_key="id", on_select=toggle_delete_button
+    )
+    table.set_selection("multiple")
+
     # Pagination controls
     with ui.row().classes("w-full justify-center items-center gap-2 mt-4"):
         # Page size selector
@@ -153,8 +166,10 @@ async def user_list(user_repo: UserRepository) -> None:
 async def index(user_repo: UserRepository = Depends(get_user_repository)):
     async def create() -> None:
         try:
-            await user_repo.create(name=name.value, email=email.value, password=password.value)
-            ui.notify(f"User: '{name.value}' created successfully", type='positive')
+            await user_repo.create(
+                name=name.value, email=email.value, password=password.value
+            )
+            ui.notify(f"User: '{name.value}' created successfully", type="positive")
             name.value = ""
             email.value = ""
             password.value = ""
@@ -172,9 +187,9 @@ async def index(user_repo: UserRepository = Depends(get_user_repository)):
 
     with ui.column().classes("mx-auto"):
         # tailwind
-        with ui.row().classes('w-full items-center px-4'):
-            name = ui.input(label='Name')
-            email = ui.input(label='Email')
-            password = ui.input(label='Password')
-            ui.button(on_click=create, icon='add')
+        with ui.row().classes("w-full items-center px-4"):
+            name = ui.input(label="Name")
+            email = ui.input(label="Email")
+            password = ui.input(label="Password")
+            ui.button(on_click=create, icon="add")
         await user_list(user_repo)

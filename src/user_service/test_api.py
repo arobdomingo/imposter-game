@@ -41,7 +41,12 @@ def client(repo):
 @pytest.fixture(scope="function")
 def created_user(session):
     user_data = {"name": "foo", "email": "foo@example.com", "password": "foopass"}
-    session.execute(text("INSERT INTO users (name, email, password) VALUES (:name, :email, :password)"), user_data)
+    session.execute(
+        text(
+            "INSERT INTO users (name, email, password) VALUES (:name, :email, :password)"
+        ),
+        user_data,
+    )
     session.commit()
     return user_data
 
@@ -56,10 +61,11 @@ def test_read_user(client, created_user):
     # Password should NOT be in response (security)
     assert "password" not in user_response
 
+
 def test_create_user(client):
     response = client.post(
         "/users/",
-        json={"name": "foobar", "email": "foobar@example.com", "password": "foobar"}
+        json={"name": "foobar", "email": "foobar@example.com", "password": "foobar"},
     )
     assert response.status_code == 201
     user_response = response.json()["user"]
