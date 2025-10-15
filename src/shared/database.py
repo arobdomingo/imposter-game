@@ -4,10 +4,11 @@ from sqlalchemy.orm import sessionmaker
 import os
 
 engine = None
+SessionLocal = None
 
 
 def get_db():
-    global engine
+    global engine, SessionLocal
     if not engine:
         host = os.environ["DATABASE_HOST"]
         username = os.environ["DATABASE_USER"]
@@ -16,17 +17,8 @@ def get_db():
         DATABASE_URL = f"postgresql+psycopg2://{username}:{password}@{host}:5432/"
 
         engine = create_engine(DATABASE_URL)
+        SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-host = os.environ.get("POSTGRES_HOST", "localhost")
-username = os.environ.get('POSTGRES_USER', 'group7')
-password = os.environ.get('POSTGRES_PASSWORD', '123456789')
-
-DATABASE_URL = f"postgresql+psycopg2://{username}:{password}@{host}:5432/postgres"
-
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-def get_db():
     db = SessionLocal()
     try:
         yield db

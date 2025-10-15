@@ -19,6 +19,7 @@ from .models.user import (
     PaginatedUsersResponse,
     get_user_repository,
 )
+from .models.friendship_routes import router as friendship_router
 
 logger = logging.getLogger("uvicorn.error")
 app = FastAPI()
@@ -161,7 +162,6 @@ async def delete_user(
 
 
 # Include friendship routes
-from .models.friendship_routes import router as friendship_router
 app.include_router(friendship_router)
 
 ui.run_with(app, mount_path="/admin", favicon="👤", title="User Admin")
