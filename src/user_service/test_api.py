@@ -5,7 +5,11 @@ from sqlalchemy.orm import Session
 from sqlalchemy import create_engine, text
 
 from .models.user import Base, UserRepository, get_user_repository
-from .models.friendship import Friendship, FriendshipRepository, get_friendship_repository  # noqa: F401 - Imported to register table
+from .models.friendship import (
+    Friendship,  # noqa: F401 - Imported to register table with Base.metadata
+    FriendshipRepository,
+    get_friendship_repository,
+)
 
 from .api import app
 
