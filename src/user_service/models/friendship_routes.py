@@ -9,7 +9,7 @@ async def send_friend_request(requester_id: int, receiver_id: int, repo=Depends(
     try:
         await repo.send_request(requester_id, receiver_id)
         return {"message": "Friend request sent"}
-    except Exception as e:
+    except Exception:
         print("Error in send_request:")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail="Internal Server Error")
@@ -19,7 +19,7 @@ async def accept_friend_request(requester_id: int, receiver_id: int, repo=Depend
     try:
         await repo.accept_request(requester_id, receiver_id)
         return {"message": "Friend request accepted"}
-    except Exception as e:
+    except Exception:
         print("Error in accept_request:")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail="Internal Server Error")
