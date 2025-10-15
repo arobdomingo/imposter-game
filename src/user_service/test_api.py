@@ -132,3 +132,32 @@ def test_delete_nonexistent_user(client):
     )
     assert response.status_code == 404
     assert response.json() == {"detail": "User not found"}
+
+
+# Friendship Tests
+
+def test_send_friend_request(session, client):
+    session.execute(text("INSERT INTO users (name, email, password) VALUES ('user1', 'user1@example.com', 'pass1')"))
+    session.execute(text("INSERT INTO users (name, email, password) VALUES ('user2', 'user2@example.com', 'pass2')"))
+    session.commit()
+
+    response = client.post("/friendships/request", params={"requester_id": 1, "receiver_id": 2})
+    assert response.status_code == 200
+    assert response.json() == {"message": "Friend request sent"}
+
+
+def test_accept_friend_request(session, client):
+    session.execute(text("INSERT INTO users (name, email, password) VALUES ('user1', 'user1@example.com', 'pass1')"))
+    session.execute(text("INSERT INTO users (name, email, password) VALUES ('user2', 'user2@example.com', 'pass2')"))
+    session.execute(text("INSERT INTO friendships (requester, receiver, status) VALUES (1, 2, 'pending')"))
+    session.commit()
+
+    response = client.post("/friendships/accept", params={"requester_id": 1, "receiver_id": 2})
+    assert response.status_code == 200
+    assert response.json() == {"message": "Friend request accepted"}
+
+
+def test_accept_nonexistent_friendship(client):
+    response = client.post("/friendships/accept", params={"requester_id": 99, "receiver_id": 100})
+    assert response.status_code == 200
+    assert response.json() == {"message": "Friend request accepted"}

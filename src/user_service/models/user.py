@@ -7,6 +7,7 @@ from typing import Tuple
 
 from shared.database import get_db
 
+
 Base = declarative_base()
 
 

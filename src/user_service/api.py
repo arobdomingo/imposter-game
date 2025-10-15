@@ -160,4 +160,8 @@ async def delete_user(
     return {"message": "User deleted successfully", "user": {"name": user.name}}
 
 
+# Include friendship routes
+from .models.friendship_routes import router as friendship_router
+app.include_router(friendship_router)
+
 ui.run_with(app, mount_path="/admin", favicon="👤", title="User Admin")
