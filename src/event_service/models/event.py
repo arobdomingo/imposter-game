@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from sqlalchemy import select, String, DateTime, Text, Integer, JSON, func
+from sqlalchemy import select, String, DateTime, Integer, JSON, func
 from sqlalchemy.orm import Session, mapped_column, Mapped
 from sqlalchemy.exc import IntegrityError
 from fastapi import Depends
@@ -11,6 +11,7 @@ from user_service.models.user import Base  # Inherit from your SQLAlchemy Base
 
 
 # ------------------ DATABASE MODEL ------------------
+
 
 class Event(Base):
     """
@@ -29,6 +30,7 @@ class Event(Base):
 
 # ------------------ REPOSITORY ------------------
 
+
 class EventRepository:
     """
     Controls manipulation of the events table.
@@ -39,21 +41,17 @@ class EventRepository:
         self.session = session
 
     async def create(
-        self, 
-        when: datetime, 
-        source: str, 
-        type: str, 
-        payload: Dict[str, Any], 
-        user: Optional[str] = None
+        self,
+        when: datetime,
+        source: str,
+        type: str,
+        payload: Dict[str, Any],
+        user: Optional[str] = None,
     ) -> Event:
         """Create a new event. Events are immutable once created."""
         try:
             new_event = Event(
-                when=when,
-                source=source,
-                type=type,
-                payload=payload,
-                user=user
+                when=when, source=source, type=type, payload=payload, user=user
             )
             self.session.add(new_event)
             self.session.commit()
@@ -71,7 +69,7 @@ class EventRepository:
         after: Optional[datetime] = None,
         user: Optional[str] = None,
         page: int = 1,
-        page_size: int = 50
+        page_size: int = 50,
     ) -> Tuple[List[Event], int]:
         """
         Get events filtered by various criteria with pagination.
@@ -79,7 +77,7 @@ class EventRepository:
         """
         # Build the query
         query = select(Event)
-        
+
         # Apply filters
         if type is not None:
             query = query.where(Event.type == type)
@@ -91,27 +89,30 @@ class EventRepository:
             query = query.where(Event.when > after)
         if user is not None:
             query = query.where(Event.user == user)
-        
+
         # Get total count for pagination
         count_query = select(func.count(Event.id))
         if query.whereclause is not None:
             count_query = count_query.where(query.whereclause)
-        
+
         total_count = self.session.scalar(count_query)
-        
+
         # Apply pagination
         offset = (page - 1) * page_size
         query = query.order_by(Event.when.desc()).offset(offset).limit(page_size)
-        
+
         events = self.session.scalars(query).all()
         return list(events), total_count
 
-    async def get_all(self, page: int = 1, page_size: int = 50) -> Tuple[List[Event], int]:
+    async def get_all(
+        self, page: int = 1, page_size: int = 50
+    ) -> Tuple[List[Event], int]:
         """Get all events with pagination."""
         return await self.get_by_filters(page=page, page_size=page_size)
 
 
 # ------------------ DEPENDENCY ------------------
+
 
 def get_event_repository(db: Session = Depends(get_db)) -> EventRepository:
     return EventRepository(db)
@@ -119,8 +120,10 @@ def get_event_repository(db: Session = Depends(get_db)) -> EventRepository:
 
 # ------------------ SCHEMAS ------------------
 
+
 class EventCreateSchema(BaseModel):
     """Schema for creating an event"""
+
     when: datetime
     source: str
     type: str
@@ -130,6 +133,7 @@ class EventCreateSchema(BaseModel):
 
 class EventResponseSchema(BaseModel):
     """Schema for event responses"""
+
     id: int
     when: datetime
     source: str
@@ -146,12 +150,13 @@ class EventResponseSchema(BaseModel):
             source=event.source,
             type=event.type,
             payload=event.payload,
-            user=event.user
+            user=event.user,
         )
 
 
 class EventQuerySchema(BaseModel):
     """Schema for event query parameters"""
+
     type: Optional[str] = None
     source: Optional[str] = None
     before: Optional[datetime] = None
@@ -163,6 +168,7 @@ class EventQuerySchema(BaseModel):
 
 class PaginatedEventsResponse(BaseModel):
     """Response model for paginated events"""
+
     events: List[EventResponseSchema]
     total: int
     page: int

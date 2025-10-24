@@ -28,9 +28,15 @@ def upgrade() -> None:
         sa.Column("requester", sa.Integer(), nullable=False),
         sa.Column("receiver", sa.Integer(), nullable=False),
         sa.Column("status", sa.String(), nullable=False),
-        sa.ForeignKeyConstraint(["requester"], ["users.id"], ),
-        sa.ForeignKeyConstraint(["receiver"], ["users.id"], ),
-        sa.PrimaryKeyConstraint("id")
+        sa.ForeignKeyConstraint(
+            ["requester"],
+            ["users.id"],
+        ),
+        sa.ForeignKeyConstraint(
+            ["receiver"],
+            ["users.id"],
+        ),
+        sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(op.f("ix_friendships_requester"), "friendships", ["requester"])
     op.create_index(op.f("ix_friendships_receiver"), "friendships", ["receiver"])

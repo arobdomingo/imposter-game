@@ -2,7 +2,6 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 from sqlalchemy import create_engine, text
-from datetime import datetime
 
 from event_service.models.event import Base, EventRepository, get_event_repository
 from user_service.api import app
@@ -45,9 +44,9 @@ def test_create_event_with_user(client):
         "source": "http://localhost/blog/some-post",
         "type": "text-highlight",
         "payload": {"content": "something the user highlighted"},
-        "user": "1234-abcd-5678-efgh"
+        "user": "1234-abcd-5678-efgh",
     }
-    
+
     response = client.post("/v2/events/", json=event_data)
     assert response.status_code == 201
     event_response = response.json()["event"]
@@ -66,9 +65,9 @@ def test_create_event_without_user(client):
         "source": "http://localhost/blog/another-post",
         "type": "link-out",
         "payload": {"destination": "https://wikipedia.org/"},
-        "user": None
+        "user": None,
     }
-    
+
     response = client.post("/v2/events/", json=event_data)
     assert response.status_code == 201
     event_response = response.json()["event"]
@@ -92,7 +91,7 @@ def test_get_events_without_filters(client, session):
         """)
     )
     session.commit()
-    
+
     response = client.get("/v2/events/")
     assert response.status_code == 200
     data = response.json()
@@ -114,7 +113,7 @@ def test_get_events_filter_by_type(client, session):
         """)
     )
     session.commit()
-    
+
     response = client.get("/v2/events/?type=click")
     assert response.status_code == 200
     data = response.json()
@@ -134,7 +133,7 @@ def test_get_events_filter_by_source(client, session):
         """)
     )
     session.commit()
-    
+
     response = client.get("/v2/events/?source=http://localhost/page1")
     assert response.status_code == 200
     data = response.json()
@@ -154,7 +153,7 @@ def test_get_events_filter_by_user(client, session):
         """)
     )
     session.commit()
-    
+
     response = client.get("/v2/events/?user=user1")
     assert response.status_code == 200
     data = response.json()
@@ -174,21 +173,23 @@ def test_get_events_filter_by_time_range(client, session):
         """)
     )
     session.commit()
-    
+
     # Test after filter
     response = client.get("/v2/events/?after=2025-10-15T10:30:00")
     assert response.status_code == 200
     data = response.json()
     assert len(data["events"]) == 2  # Only events after 10:30
-    
+
     # Test before filter
     response = client.get("/v2/events/?before=2025-10-15T11:30:00")
     assert response.status_code == 200
     data = response.json()
     assert len(data["events"]) == 2  # Only events before 11:30
-    
+
     # Test both filters
-    response = client.get("/v2/events/?after=2025-10-15T10:30:00&before=2025-10-15T11:30:00")
+    response = client.get(
+        "/v2/events/?after=2025-10-15T10:30:00&before=2025-10-15T11:30:00"
+    )
     assert response.status_code == 200
     data = response.json()
     assert len(data["events"]) == 1  # Only the 11:00 event
@@ -201,11 +202,11 @@ def test_get_events_pagination(client, session):
         session.execute(
             text(f"""
                 INSERT INTO events (`when`, source, type, payload, user) VALUES 
-                ('2025-10-15 {10+i:02d}:00:00', 'http://localhost/page{i}', 'click', '{{"element": "button{i}"}}', 'user{i}')
+                ('2025-10-15 {10 + i:02d}:00:00', 'http://localhost/page{i}', 'click', '{{"element": "button{i}"}}', 'user{i}')
             """)
         )
     session.commit()
-    
+
     # Test first page
     response = client.get("/v2/events/?page=1&page_size=2")
     assert response.status_code == 200
@@ -215,7 +216,7 @@ def test_get_events_pagination(client, session):
     assert data["page"] == 1
     assert data["page_size"] == 2
     assert data["total_pages"] == 3
-    
+
     # Test second page
     response = client.get("/v2/events/?page=2&page_size=2")
     assert response.status_code == 200
@@ -234,11 +235,11 @@ def test_events_are_immutable(client, session):
         """)
     )
     session.commit()
-    
+
     # Try to update (should not be possible via API)
     # Note: This test verifies that there are no PUT/PATCH/DELETE endpoints for events
     # The API only supports POST (create) and GET (read) operations
-    
+
     # Verify the event exists and is unchanged
     response = client.get("/v2/events/")
     assert response.status_code == 200
@@ -246,5 +247,3 @@ def test_events_are_immutable(client, session):
     assert len(data["events"]) == 1
     assert data["events"][0]["type"] == "click"
     assert data["events"][0]["user"] == "user1"
-
-
