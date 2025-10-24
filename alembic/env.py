@@ -29,6 +29,7 @@ if config.config_file_name is not None:
 
 # Import metadata
 from user_service.models.user import Base  # noqa: E402
+from event_service.models.event import Event  # noqa: E402 - Import to register with Base.metadata
 
 target_metadata = Base.metadata
 
