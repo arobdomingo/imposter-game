@@ -36,9 +36,20 @@ jobs:
       run: |
         uv run ruff format --check .
         
-    - name: Run tests
+    - name: Run all tests
       run: |
         uv run pytest src/ -v --cov=src --cov-report=xml --cov-report=term-missing
+        
+    - name: Run specific test suites
+      run: |
+        echo "Running User Service tests..."
+        uv run pytest src/user_service/test_api.py -v
+        
+        echo "Running Event Service tests..."
+        uv run pytest src/event_service/test_events.py -v
+        
+        echo "Running Analytics API tests..."
+        uv run pytest src/analytics/test_analytics_pytest.py -v
         
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
