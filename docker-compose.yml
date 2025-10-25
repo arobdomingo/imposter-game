@@ -26,6 +26,7 @@ services:
       DATABASE_HOST: db # The service name of your Postgres container
       DATABASE_USER: ${POSTGRES_USER}
       DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
+      AUTH_TTL_SECONDS: 3600
     develop:
       watch:
         - action: sync+restart

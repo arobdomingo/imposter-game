@@ -23,6 +23,7 @@ dependencies = [
     "pytest-cov>=7.0.0",
     "sqlalchemy>=2.0.43",
     "pillow>=10.4.0",
+    "requests>=2.31.0",
 ]
 
 [build-system]
