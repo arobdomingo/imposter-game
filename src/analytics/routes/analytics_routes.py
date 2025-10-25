@@ -5,22 +5,22 @@ import statistics
 
 router = APIRouter(prefix="/v2/analytics", tags=["Analytics"])
 
-# 简单的内存存储
+# Simple in-memory storage
 _analytics_data = {"active_users": 0, "max_users_today": 0, "session_lengths": []}
 
-# 历史数据存储（模拟数据库）
+# Historical data storage (simulating database)
 _historical_data = {}
 
 
 def calculate_session_stats(session_lengths):
-    """计算会话长度统计"""
+    """Calculate session length statistics"""
     if not session_lengths:
         return {"min": 0.0, "max": 0.0, "mean": 0.0, "median": 0.0, "p95": 0.0}
 
     sorted_lengths = sorted(session_lengths)
     n = len(sorted_lengths)
 
-    # 计算95百分位
+    # Calculate 95th percentile
     p95_index = int(0.95 * n)
     if p95_index >= n:
         p95_index = n - 1
@@ -39,10 +39,10 @@ async def get_analytics(
     on: Optional[date] = Query(None, description="Get analytics for specific date"),
     since: Optional[date] = Query(None, description="Get mean analytics since date"),
 ):
-    """获取分析数据 - 支持三种查询模式"""
+    """Get analytics data - supports 3 query modes"""
     today = date.today()
 
-    # 验证日期限制（不超过365天前）
+    # Validate date limits (no more than 365 days ago)
     max_past_date = today - timedelta(days=365)
 
     if on and on < max_past_date:
@@ -52,7 +52,7 @@ async def get_analytics(
         return {"error": "Since date must be no more than 365 days ago"}
 
     if on:
-        # 指定日期查询
+        # Specific date query
         if on in _historical_data:
             data = _historical_data[on]
             return {
@@ -66,11 +66,11 @@ async def get_analytics(
             return {"error": f"No data available for {on}"}
 
     elif since:
-        # 期间平均查询
+        # Period average query
         if since not in _historical_data:
             return {"error": f"No data available since {since}"}
 
-        # 计算期间平均值
+        # Calculate period averages
         period_data = []
         current_date = since
         while current_date <= today:
@@ -81,7 +81,7 @@ async def get_analytics(
         if not period_data:
             return {"error": "No data available for the specified period"}
 
-        # 计算平均值
+        # Calculate averages
         session_mins = [
             d["session_lengths"] and min(d["session_lengths"]) or 0 for d in period_data
         ]
@@ -121,7 +121,7 @@ async def get_analytics(
         }
 
     else:
-        # 今日实时查询
+        # Today's real-time query
         return {
             "session_length": calculate_session_stats(
                 _analytics_data["session_lengths"]
@@ -135,10 +135,10 @@ async def get_analytics(
 
 @router.post("/test")
 async def test_user_activity():
-    """测试端点 - 模拟用户活动"""
-    session_length = 300.0  # 5分钟会话
+    """Test endpoint - simulate user activity"""
+    session_length = 300.0  # 5-minute session
 
-    # 更新当前数据
+    # Update current data
     _analytics_data["active_users"] += 1
     _analytics_data["max_users_today"] = max(
         _analytics_data["max_users_today"], _analytics_data["active_users"]
@@ -155,7 +155,7 @@ async def test_user_activity():
 
 @router.post("/save-daily")
 async def save_daily_data():
-    """保存今日数据到历史记录"""
+    """Save today's data to historical records"""
     today = date.today()
     _historical_data[today] = {
         "active_users": _analytics_data["active_users"],
@@ -168,5 +168,5 @@ async def save_daily_data():
 
 @router.get("/health")
 async def health_check():
-    """健康检查"""
+    """Health check"""
     return {"status": "healthy", "message": "Analytics service is working"}
