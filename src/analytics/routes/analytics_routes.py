@@ -166,6 +166,15 @@ async def save_daily_data():
     return {"message": f"Daily data saved for {today}", "data": _historical_data[today]}
 
 
+@router.post("/reset")
+async def reset_analytics_data():
+    """Reset analytics data to initial state"""
+    global _analytics_data, _historical_data
+    _analytics_data = {"active_users": 0, "max_users_today": 0, "session_lengths": []}
+    _historical_data = {}
+    return {"message": "Analytics data reset successfully"}
+
+
 @router.get("/health")
 async def health_check():
     """Health check"""
