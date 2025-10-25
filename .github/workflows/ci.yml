@@ -38,9 +38,9 @@ jobs:
         
     - name: Set up environment variables
       run: |
-        echo "DATABASE_HOST=localhost" >> $GITHUB_ENV
-        echo "DATABASE_USER=user" >> $GITHUB_ENV
-        echo "DATABASE_PASSWORD=password" >> $GITHUB_ENV
+        echo "POSTGRES_HOST=localhost" >> $GITHUB_ENV
+        echo "POSTGRES_USER=user" >> $GITHUB_ENV
+        echo "POSTGRES_PASSWORD=password" >> $GITHUB_ENV
         echo "AUTH_TTL_SECONDS=3600" >> $GITHUB_ENV
         
     - name: Start PostgreSQL service

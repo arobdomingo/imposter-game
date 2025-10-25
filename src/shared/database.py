@@ -10,9 +10,9 @@ SessionLocal = None
 def get_db():
     global engine, SessionLocal
     if not engine:
-        host = os.environ.get("DATABASE_HOST", "localhost")
-        username = os.environ.get("DATABASE_USER", "user")
-        password = os.environ.get("DATABASE_PASSWORD", "password")
+        host = os.environ.get("POSTGRES_HOST", "localhost")
+        username = os.environ.get("POSTGRES_USER", "user")
+        password = os.environ.get("POSTGRES_PASSWORD", "password")
 
         DATABASE_URL = f"postgresql+psycopg2://{username}:{password}@{host}:5432/"
 
