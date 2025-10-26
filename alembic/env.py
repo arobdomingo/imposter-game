@@ -17,10 +17,14 @@ config = context.config
 
 # Inject environment variables into alembic.ini
 section = config.config_ini_section
-config.set_section_option(section, "DATABASE_HOST", os.environ.get("POSTGRES_HOST"))
-config.set_section_option(section, "DATABASE_USER", os.environ.get("POSTGRES_USER"))
 config.set_section_option(
-    section, "DATABASE_PASSWORD", os.environ.get("POSTGRES_PASSWORD")
+    section, "DATABASE_HOST", os.environ.get("POSTGRES_HOST", "localhost")
+)
+config.set_section_option(
+    section, "DATABASE_USER", os.environ.get("POSTGRES_USER", "user")
+)
+config.set_section_option(
+    section, "DATABASE_PASSWORD", os.environ.get("POSTGRES_PASSWORD", "password")
 )
 
 # Logging

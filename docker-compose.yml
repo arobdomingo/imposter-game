@@ -23,9 +23,9 @@ services:
     ports:
       - "8000:8000"
     environment:
-      DATABASE_HOST: db # The service name of your Postgres container
-      DATABASE_USER: ${POSTGRES_USER}
-      DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_HOST: db # The service name of your Postgres container
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       AUTH_TTL_SECONDS: 3600
     develop:
       watch:

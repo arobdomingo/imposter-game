@@ -36,6 +36,37 @@ jobs:
       run: |
         uv run ruff format --check .
         
+    - name: Set up environment variables
+      run: |
+        echo "POSTGRES_HOST=localhost" >> $GITHUB_ENV
+        echo "POSTGRES_USER=user" >> $GITHUB_ENV
+        echo "POSTGRES_PASSWORD=password" >> $GITHUB_ENV
+        echo "POSTGRES_DB=user" >> $GITHUB_ENV
+        echo "AUTH_TTL_SECONDS=3600" >> $GITHUB_ENV
+        
+    - name: Start PostgreSQL service
+      run: |
+        docker run -d --name postgres-test \
+          -e POSTGRES_USER=user \
+          -e POSTGRES_PASSWORD=password \
+          -e POSTGRES_DB=user \
+          -p 5432:5432 \
+          postgres:15
+        sleep 10
+        
+    - name: Run database migrations
+      run: |
+        uv run alembic upgrade head
+        
+    - name: Start application
+      run: |
+        uv run uvicorn src.user_service.api:app --host 0.0.0.0 --port 8000 &
+        sleep 10
+        
+    - name: Wait for application to be ready
+      run: |
+        timeout 30 bash -c 'until curl -f http://localhost:8000/v2/analytics/health; do sleep 1; done'
+        
     - name: Run all tests
       run: |
         uv run pytest src/ -v --cov=src --cov-report=xml --cov-report=term-missing

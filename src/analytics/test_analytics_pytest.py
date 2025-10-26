@@ -22,6 +22,15 @@ class TestAnalyticsAPI:
         self.analytics_url = ANALYTICS_URL
         self.today = date.today()
 
+    def _reset_analytics_data(self):
+        """Reset analytics data to initial state"""
+        try:
+            # Try to reset via API if available
+            requests.post(f"{self.analytics_url}/reset", timeout=1)
+        except requests.exceptions.RequestException:
+            # If reset endpoint doesn't exist, continue with test
+            pass
+
     def test_health_check(self):
         """Test health check"""
         response = requests.get(f"{self.analytics_url}/health")
@@ -32,6 +41,7 @@ class TestAnalyticsAPI:
 
     def test_today_analytics_initial(self):
         """Test initial analytics data"""
+        self._reset_analytics_data()
         response = requests.get(self.analytics_url)
         assert response.status_code == 200
         data = response.json()
@@ -59,6 +69,7 @@ class TestAnalyticsAPI:
 
     def test_user_activity_simulation(self):
         """Test user activity simulation"""
+        self._reset_analytics_data()
         # Simulate 3 user activities
         for i in range(3):
             response = requests.post(f"{self.analytics_url}/test")
