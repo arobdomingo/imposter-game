@@ -1,5 +1,7 @@
 import pytest
 
+from PIL import Image
+from io import BytesIO
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 from sqlalchemy import create_engine, text
@@ -97,11 +99,60 @@ def test_create_existing_user(client, created_user):
     assert response.json() == {"detail": "Item already exists"}
 
 
-def test_upload_and_get_legacy_avatar(client, created_user):
-    """Test uploading and retrieving a user avatar"""
-    from PIL import Image
-    from io import BytesIO
+def _clean_avatar(client, user_id=1):
+    client.delete(f"/v2/users/{user_id}/avatar")  # ignore 404 if not present
 
+
+def test_v2_avatar_post_errors_via_endpoint(client, created_user):
+    _clean_avatar(client)
+
+    # Empty upload -> 400
+    r = client.post(
+        "/v2/users/1/avatar",
+        files={"file": ("empty.jpg", BytesIO(b""), "image/jpeg")},
+    )
+    assert r.status_code == 400
+
+    # Not-an-image bytes -> 422
+    r = client.post(
+        "/v2/users/1/avatar",
+        files={"file": ("bad.png", BytesIO(b"not-an-image"), "image/png")},
+    )
+    assert r.status_code == 422
+
+    # Unsupported content-type -> 415
+    r = client.post(
+        "/v2/users/1/avatar",
+        files={"file": ("note.txt", BytesIO(b"text"), "text/plain")},
+    )
+    assert r.status_code == 415
+
+
+def test_v2_avatar_png_rgba_converted_and_resized(client, created_user):
+    _clean_avatar(client)
+
+    # Create RGBA (has alpha) PNG; server should convert to RGB + clamp to <=256
+    buf = BytesIO()
+    Image.new("RGBA", (800, 600), (0, 200, 255, 128)).save(buf, format="PNG")
+    buf.seek(0)
+
+    # POST create
+    r = client.post(
+        "/v2/users/1/avatar",
+        files={"file": ("has_alpha.png", buf, "image/png")},
+    )
+    assert r.status_code == 201
+
+    # GET and inspect returned image
+    r = client.get("/v2/users/1/avatar")
+    assert r.status_code == 200
+    assert r.headers["content-type"] == "image/jpeg"
+    img = Image.open(BytesIO(r.content))
+    assert img.mode == "RGB"
+    assert max(img.size) <= 256  # resized within 256x256
+
+
+def test_upload_and_get_legacy_avatar(client, created_user):
     # Create a test image
     img = Image.new("RGB", (100, 100), color="red")
     img_bytes = BytesIO()
@@ -121,7 +172,6 @@ def test_upload_and_get_legacy_avatar(client, created_user):
 
 
 def test_create_and_get_v2_avatar(client, created_user):
-    """Test uploading and retrieving a v2 user avatar"""
     from PIL import Image
     from io import BytesIO
 
@@ -147,7 +197,6 @@ def test_create_and_get_v2_avatar(client, created_user):
 
 
 def test_replace_v2_avatar(client, created_user):
-    """Test replacing an existing v2 user avatar"""
     from PIL import Image
     from io import BytesIO
 
@@ -175,7 +224,6 @@ def test_replace_v2_avatar(client, created_user):
 
 
 def test_delete_v2_avatar(client, created_user):
-    """Test deleting a v2 user avatar"""
     from PIL import Image
     from io import BytesIO
 
