@@ -15,23 +15,34 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 config = context.config
 
 section = config.config_ini_section
-config.set_section_option(section, "DATABASE_HOST", os.environ.get("POSTGRES_HOST", "localhost"))
-config.set_section_option(section, "DATABASE_USER", os.environ.get("POSTGRES_USER", "user"))
-config.set_section_option(section, "DATABASE_PASSWORD", os.environ.get("POSTGRES_PASSWORD", "password"))
-config.set_section_option(section, "DATABASE_NAME", os.environ.get("POSTGRES_DB", "postgres"))
+config.set_section_option(
+    section, "DATABASE_HOST", os.environ.get("POSTGRES_HOST", "localhost")
+)
+config.set_section_option(
+    section, "DATABASE_USER", os.environ.get("POSTGRES_USER", "user")
+)
+config.set_section_option(
+    section, "DATABASE_PASSWORD", os.environ.get("POSTGRES_PASSWORD", "password")
+)
+config.set_section_option(
+    section, "DATABASE_NAME", os.environ.get("POSTGRES_DB", "postgres")
+)
 
-db_url = f"postgresql+psycopg2://{os.environ['POSTGRES_USER']}:" \
-         f"{os.environ['POSTGRES_PASSWORD']}@" \
-         f"{os.environ['POSTGRES_HOST']}:" \
-         f"{os.environ.get('POSTGRES_PORT', 5432)}/" \
-         f"{os.environ['POSTGRES_DB']}"
+db_url = (
+    f"postgresql+psycopg2://{os.environ['POSTGRES_USER']}:"
+    f"{os.environ['POSTGRES_PASSWORD']}@"
+    f"{os.environ['POSTGRES_HOST']}:"
+    f"{os.environ.get('POSTGRES_PORT', 5432)}/"
+    f"{os.environ['POSTGRES_DB']}"
+)
 config.set_main_option("sqlalchemy.url", db_url)
 
 # ---------------- Logging ----------------
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
-    
+
 from user_service import models
+
 target_metadata = models.Base.metadata
 
 # ---------------- Import shared Base ----------------
@@ -42,7 +53,6 @@ target_metadata = Base.metadata
 
 # ---------------- Friendship ----------------
 from user_service.models import friendship
-
 
 
 # ---------------- Offline migrations ----------------
@@ -57,6 +67,7 @@ def run_migrations_offline() -> None:
     with context.begin_transaction():
         context.run_migrations()
 
+
 # ---------------- Online migrations ----------------
 def run_migrations_online() -> None:
     connectable = engine_from_config(
@@ -68,6 +79,7 @@ def run_migrations_online() -> None:
         context.configure(connection=connection, target_metadata=target_metadata)
         with context.begin_transaction():
             context.run_migrations()
+
 
 if context.is_offline_mode():
     run_migrations_offline()

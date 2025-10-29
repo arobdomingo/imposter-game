@@ -5,6 +5,7 @@ from fastapi import Depends
 from shared.database import get_db
 from user_service.models.user import Base  # ✅ Use the shared declarative Base
 
+
 # ------------------ DATABASE MODEL ------------------
 class Friendship(Base):
     __tablename__ = "friendships"
@@ -17,6 +18,7 @@ class Friendship(Base):
     )
     status: Mapped[str] = mapped_column(String, nullable=False)  # "pending", "accepted"
 
+
 # ------------------ REPOSITORY ------------------
 class FriendshipRepository:
     def __init__(self, session: Session):
@@ -25,8 +27,14 @@ class FriendshipRepository:
     async def send_request(self, requester_id: int, receiver_id: int) -> None:
         existing = self.session.scalar(
             select(Friendship).where(
-                ((Friendship.requester == requester_id) & (Friendship.receiver == receiver_id))
-                | ((Friendship.requester == receiver_id) & (Friendship.receiver == requester_id))
+                (
+                    (Friendship.requester == requester_id)
+                    & (Friendship.receiver == receiver_id)
+                )
+                | (
+                    (Friendship.requester == receiver_id)
+                    & (Friendship.receiver == requester_id)
+                )
             )
         )
         if existing:
@@ -37,7 +45,9 @@ class FriendshipRepository:
         )
         self.session.commit()
 
-    async def update_request(self, requester_id: int, receiver_id: int, accept: bool) -> None:
+    async def update_request(
+        self, requester_id: int, receiver_id: int, accept: bool
+    ) -> None:
         existing = self.session.scalar(
             select(Friendship).where(
                 (Friendship.requester == requester_id)
@@ -62,26 +72,33 @@ class FriendshipRepository:
 
     async def get_incoming_requests(self, user_id: int):
         results = self.session.execute(
-            select(Friendship).where(Friendship.receiver == user_id, Friendship.status == "pending")
+            select(Friendship).where(
+                Friendship.receiver == user_id, Friendship.status == "pending"
+            )
         )
-        return [f for f, in results.all()]
+        return [f for (f,) in results.all()]
 
     async def get_outgoing_requests(self, user_id: int):
         results = self.session.execute(
-            select(Friendship).where(Friendship.requester == user_id, Friendship.status == "pending")
+            select(Friendship).where(
+                Friendship.requester == user_id, Friendship.status == "pending"
+            )
         )
-        return [f for f, in results.all()]
+        return [f for (f,) in results.all()]
 
     async def delete_request(self, requester_id: int, receiver_id: int):
         stmt = delete(Friendship).where(
-            (Friendship.requester == requester_id) & (Friendship.receiver == receiver_id)
+            (Friendship.requester == requester_id)
+            & (Friendship.receiver == receiver_id)
         )
         self.session.execute(stmt)
         self.session.commit()
 
+
 # ------------------ DEPENDENCY ------------------
 def get_friendship_repository(db: Session = Depends(get_db)) -> FriendshipRepository:
     return FriendshipRepository(db)
+
 
 # ------------------ SCHEMA ------------------
 class FriendshipSchema(BaseModel):
