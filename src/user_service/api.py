@@ -33,6 +33,7 @@ os.makedirs(AVATAR_DIRECTORY, exist_ok=True)  # create media/avatars path if req
 
 # Legacy upload avatar method:
 
+
 @app.put("/users/{id}/avatar", status_code=201)
 async def upload_avatar(
     id: int, file: UploadFile = File(...), user_repo=Depends(get_user_repository)
@@ -50,7 +51,9 @@ async def upload_avatar(
 
     return {"message": "Avatar uploaded successfully"}
 
+
 # get_avatar() is identical between versions:
+
 
 @app.get("/users/{user_id}/avatar")
 @app.get("/v2/users/{user_id}/avatar")
@@ -66,40 +69,51 @@ async def get_avatar(user_id: int, user_repo=Depends(get_user_repository)):
 
     return FileResponse(path, media_type="image/jpeg")
 
-def process_image_upload(raw_image: bytes): 
 
+def process_image_upload(raw_image: bytes):
     if not raw_image:
         raise HTTPException(400, "Empty Upload")
-    
+
     try:
-        image = Image.open(BytesIO(raw_image)) # convert raw data to file like object and lazy load
-        image.load() # read and decompress pixel data
+        image = Image.open(
+            BytesIO(raw_image)
+        )  # convert raw data to file like object and lazy load
+        image.load()  # read and decompress pixel data
     except UnidentifiedImageError:
         raise HTTPException(422, "Invalid Image File")
-    
-    if image.mode != "RGB":
-        image = image.convert("RGB") # ensure we can safe safely as jpg, pratical image form
 
-    image.thumbnail((256,256)) # resize (fixed aspect ratio) to fit within 256x256
+    if image.mode != "RGB":
+        image = image.convert(
+            "RGB"
+        )  # ensure we can safe safely as jpg, pratical image form
+
+    image.thumbnail((256, 256))  # resize (fixed aspect ratio) to fit within 256x256
 
     return image
 
+
 # New version 2 methods concerning user avatars:
 
-@app.post("/v2/users/{user_id}/avatar", status_code = 201)
-async def create_avatar(user_id: int, file: UploadFile = File(...), user_repo=Depends(get_user_repository)):
 
-    """ Creates a v2 profile picture (web, png, or jpeg uploads accepted) """
+@app.post("/v2/users/{user_id}/avatar", status_code=201)
+async def create_avatar(
+    user_id: int, file: UploadFile = File(...), user_repo=Depends(get_user_repository)
+):
+    """Creates a v2 profile picture (web, png, or jpeg uploads accepted)"""
 
     # MUST DO: password verification to be implemented
 
-    user = await user_repo.get_by_id(user_id) # check the user exists
+    user = await user_repo.get_by_id(user_id)  # check the user exists
     if not user:
         raise HTTPException(404, "User not found")
-    
-    if file.content_type not in ("image/png", "image/jpeg", "image/webp"): # valid file type
+
+    if file.content_type not in (
+        "image/png",
+        "image/jpeg",
+        "image/webp",
+    ):  # valid file type
         raise HTTPException(415, "Unsupported media type")
-    
+
     # open and process the image
     raw_image = await file.read()
     image = process_image_upload(raw_image)
@@ -114,22 +128,24 @@ async def create_avatar(user_id: int, file: UploadFile = File(...), user_repo=De
 
     return {"message": "Avatar uploaded successfully"}
 
-@app.put("/v2/users/{user_id}/avatar", status_code = 204)
-async def replace_avatar(user_id: int, file: UploadFile = File(...), user_repo=Depends(get_user_repository)):
-    
-    """ Replaces an existing v2 profile picture (web, png, or jpeg uploads accepted) """
+
+@app.put("/v2/users/{user_id}/avatar", status_code=204)
+async def replace_avatar(
+    user_id: int, file: UploadFile = File(...), user_repo=Depends(get_user_repository)
+):
+    """Replaces an existing v2 profile picture (web, png, or jpeg uploads accepted)"""
 
     # MUST DO: password verification to be implemented
 
     # check the user exist
     user = await user_repo.get_by_id(user_id)
     if not user:
-        raise HTTPException(404, "User not found") 
-    
+        raise HTTPException(404, "User not found")
+
     # validate the file type
     if file.content_type not in ("image/png", "image/jpeg", "image/webp"):
         raise HTTPException(415, "Unsupported media type")
-    
+
     # open and process the image
     raw_image = await file.read()
     image = process_image_upload(raw_image)
@@ -140,25 +156,26 @@ async def replace_avatar(user_id: int, file: UploadFile = File(...), user_repo=D
 
     return {"message": "Avatar replaced successfully"}
 
-@app.delete("/v2/users/{user_id}/avatar", status_code = 204)
-async def delete_avatar(user_id: int, user_repo = Depends(get_user_repository)):
 
-    """ Deletes an existing v2 profile picture """
+@app.delete("/v2/users/{user_id}/avatar", status_code=204)
+async def delete_avatar(user_id: int, user_repo=Depends(get_user_repository)):
+    """Deletes an existing v2 profile picture"""
 
     # MUST DO: password verification to be implemented
 
     user = await user_repo.get_by_id(user_id)
     if not user:
-        raise HTTPException(404, "User not found") 
+        raise HTTPException(404, "User not found")
 
     destination = os.path.join(AVATAR_DIRECTORY, f"{user_id}_avatar.jpg")
-    
+
     try:
         os.remove(destination)
     except FileNotFoundError:
         raise HTTPException(404, "User avatar not found")
-    
+
     return {"message": "Avatar deleted successfully"}
+
 
 @app.post("/users/", status_code=201)
 async def create_user(

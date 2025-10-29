@@ -96,6 +96,7 @@ def test_create_existing_user(client, created_user):
     assert response.status_code == 409
     assert response.json() == {"detail": "Item already exists"}
 
+
 def test_upload_and_get_legacy_avatar(client, created_user):
     """Test uploading and retrieving a user avatar"""
     from PIL import Image
@@ -118,6 +119,7 @@ def test_upload_and_get_legacy_avatar(client, created_user):
     assert response.status_code == 200
     assert response.headers["content-type"] == "image/jpeg"
 
+
 def test_create_and_get_v2_avatar(client, created_user):
     """Test uploading and retrieving a v2 user avatar"""
     from PIL import Image
@@ -130,15 +132,19 @@ def test_create_and_get_v2_avatar(client, created_user):
 
     # Create avatar (POST)
     response = client.post(
-        f"/v2/users/1/avatar",
+        "/v2/users/1/avatar",
         files={"file": ("avatar.png", img_bytes, "image/png")},
     )
-    assert response.status_code in (201, 409) # accepts outcome that avatar already exists (from legacy test)
+    assert response.status_code in (
+        201,
+        409,
+    )  # accepts outcome that avatar already exists (from legacy test)
 
     # Retrieve avatar (GET)
-    response = client.get(f"/v2/users/1/avatar")
+    response = client.get("/v2/users/1/avatar")
     assert response.status_code == 200
     assert response.headers["content-type"] == "image/jpeg"
+
 
 def test_replace_v2_avatar(client, created_user):
     """Test replacing an existing v2 user avatar"""
@@ -151,7 +157,7 @@ def test_replace_v2_avatar(client, created_user):
     img.save(img_bytes, format="JPEG")
     img_bytes.seek(0)
     client.post(
-        f"/v2/users/1/avatar",
+        "/v2/users/1/avatar",
         files={"file": ("test.jpg", img_bytes, "image/jpeg")},
     )
 
@@ -162,10 +168,11 @@ def test_replace_v2_avatar(client, created_user):
     img2_bytes.seek(0)
 
     response = client.put(
-        f"/v2/users/1/avatar",
+        "/v2/users/1/avatar",
         files={"file": ("replace.jpg", img2_bytes, "image/jpeg")},
     )
     assert response.status_code in (200, 204)
+
 
 def test_delete_v2_avatar(client, created_user):
     """Test deleting a v2 user avatar"""
@@ -178,15 +185,15 @@ def test_delete_v2_avatar(client, created_user):
     img_bytes.seek(0)
 
     client.post(
-        f"/v2/users/1/avatar",
+        "/v2/users/1/avatar",
         files={"file": ("delete.jpg", img_bytes, "image/jpeg")},
     )
 
-    response = client.delete(f"/v2/users/1/avatar")
+    response = client.delete("/v2/users/1/avatar")
     assert response.status_code in (200, 204)
 
     # Double-check that it's actually gone
-    response = client.get(f"/v2/users/1/avatar")
+    response = client.get("/v2/users/1/avatar")
     assert response.status_code == 404
 
 
