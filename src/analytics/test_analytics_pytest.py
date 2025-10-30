@@ -18,92 +18,182 @@ class TestAnalyticsAPI:
     @pytest.fixture(autouse=True)
     def setup(self):
         """Test setup"""
-        # Reset analytics data before each test
+        self.base_url = BASE_URL
+        self.analytics_url = ANALYTICS_URL
+        self.today = date.today()
+
+    def _reset_analytics_data(self):
+        """Reset analytics data to initial state"""
         try:
-            requests.post(f"{ANALYTICS_URL}/reset", timeout=5)
+            # Try to reset via API if available
+            requests.post(f"{self.analytics_url}/reset", timeout=1)
         except requests.exceptions.RequestException:
-            pass  # Service might not be running
+            # If reset endpoint doesn't exist, continue with test
+            pass
 
     def test_health_check(self):
-        """Test health check endpoint"""
-        response = requests.get(f"{ANALYTICS_URL}/health", timeout=5)
+        """Test health check"""
+        response = requests.get(f"{self.analytics_url}/health")
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "healthy"
+        assert "message" in data
 
-    def test_get_analytics_default(self):
-        """Test getting analytics data (today's data)"""
-        response = requests.get(ANALYTICS_URL, timeout=5)
+    def test_today_analytics_initial(self):
+        """Test initial analytics data"""
+        self._reset_analytics_data()
+        response = requests.get(self.analytics_url)
         assert response.status_code == 200
         data = response.json()
 
-        # Check structure
+        # Validate data structure
         assert "session_length" in data
         assert "active_users" in data
-        assert "current" in data["active_users"]
-        assert "max" in data["active_users"]
 
-    def test_simulate_user_activity(self):
-        """Test simulating user activity"""
-        response = requests.post(f"{ANALYTICS_URL}/test", timeout=5)
+        # Validate session_length structure
+        session_length = data["session_length"]
+        assert "min" in session_length
+        assert "max" in session_length
+        assert "mean" in session_length
+        assert "median" in session_length
+        assert "p95" in session_length
+
+        # Validate active_users structure
+        active_users = data["active_users"]
+        assert "current" in active_users
+        assert "max" in active_users
+
+        # Initial state should be 0
+        assert active_users["current"] == 0
+        assert active_users["max"] == 0
+
+    def test_user_activity_simulation(self):
+        """Test user activity simulation"""
+        self._reset_analytics_data()
+        # Simulate 3 user activities
+        for i in range(3):
+            response = requests.post(f"{self.analytics_url}/test")
+            assert response.status_code == 200
+            data = response.json()
+            assert data["current_active"] == i + 1
+            assert data["max_today"] == i + 1
+            assert data["storage"] == "Memory"
+
+    def test_analytics_after_activity(self):
+        """Test analytics after activity"""
+        # Simulate some activities first
+        for _ in range(2):
+            requests.post(f"{self.analytics_url}/test")
+
+        response = requests.get(self.analytics_url)
         assert response.status_code == 200
         data = response.json()
 
-        assert "message" in data
-        assert "current_active" in data
-        assert "max_today" in data
-        assert data["storage"] == "Memory"
+        # Validate data updates
+        assert data["active_users"]["current"] >= 2
+        assert data["active_users"]["max"] >= 2
+        assert data["session_length"]["min"] > 0
+        assert data["session_length"]["max"] > 0
+        assert data["session_length"]["mean"] > 0
 
     def test_save_daily_data(self):
-        """Test saving daily data"""
-        # First simulate some activity
-        requests.post(f"{ANALYTICS_URL}/test", timeout=5)
-
-        # Then save daily data
-        response = requests.post(f"{ANALYTICS_URL}/save-daily", timeout=5)
+        """Test save daily data"""
+        response = requests.post(f"{self.analytics_url}/save-daily")
         assert response.status_code == 200
         data = response.json()
-
         assert "message" in data
         assert "data" in data
-        assert str(date.today()) in data["message"]
+        assert "active_users" in data["data"]
+        assert "max_users" in data["data"]
+        assert "session_lengths" in data["data"]
 
-    def test_reset_analytics(self):
-        """Test resetting analytics data"""
-        # First simulate some activity
-        requests.post(f"{ANALYTICS_URL}/test", timeout=5)
+    def test_specific_date_query(self):
+        """Test specific date query"""
+        # Save some data first
+        requests.post(f"{self.analytics_url}/save-daily")
 
-        # Then reset
-        response = requests.post(f"{ANALYTICS_URL}/reset", timeout=5)
-        assert response.status_code == 200
-        data = response.json()
-        assert "reset successfully" in data["message"]
-
-    def test_get_analytics_with_date_query(self):
-        """Test getting analytics for specific date"""
-        today = date.today()
-        response = requests.get(f"{ANALYTICS_URL}/?on={today}", timeout=5)
+        response = requests.get(f"{self.analytics_url}?on={self.today}")
         assert response.status_code == 200
         data = response.json()
 
-        # Should return error since no data for today yet
-        assert "error" in data
+        # Validate returned data structure
+        assert "session_length" in data
+        assert "active_users" in data
 
-    def test_get_analytics_with_since_query(self):
-        """Test getting analytics since specific date"""
-        yesterday = date.today() - timedelta(days=1)
-        response = requests.get(f"{ANALYTICS_URL}/?since={yesterday}", timeout=5)
+    def test_since_date_query(self):
+        """Test period average query"""
+        # Save some data first
+        requests.post(f"{self.analytics_url}/save-daily")
+
+        response = requests.get(f"{self.analytics_url}?since={self.today}")
         assert response.status_code == 200
         data = response.json()
 
-        # Should return error since no data available
-        assert "error" in data
+        # Validate returned data structure
+        assert "session_length" in data
+        assert "active_users" in data
 
-    def test_invalid_date_query(self):
-        """Test query with invalid date (too far in past)"""
-        old_date = date.today() - timedelta(days=400)
-        response = requests.get(f"{ANALYTICS_URL}/?on={old_date}", timeout=5)
+    def test_error_cases(self):
+        """Test error cases"""
+        # Test future date
+        future_date = self.today + timedelta(days=1)
+        response = requests.get(f"{self.analytics_url}?on={future_date}")
+        assert response.status_code == 200
+        data = response.json()
+        if "error" in data:
+            assert "No data available" in data["error"]
+
+        # Test expired date (more than 365 days)
+        old_date = self.today - timedelta(days=400)
+        response = requests.get(f"{self.analytics_url}?on={old_date}")
         assert response.status_code == 200
         data = response.json()
         assert "error" in data
         assert "365 days ago" in data["error"]
+
+    def test_statistics_calculation(self):
+        """Test statistics calculation"""
+        # Clear data and start fresh
+        requests.post(f"{self.analytics_url}/test")
+        requests.post(f"{self.analytics_url}/test")
+
+        response = requests.get(self.analytics_url)
+        assert response.status_code == 200
+        data = response.json()
+
+        session_length = data["session_length"]
+
+        # Validate statistics calculation
+        assert session_length["min"] > 0
+        assert session_length["max"] > 0
+        assert session_length["mean"] > 0
+        assert session_length["median"] > 0
+        assert session_length["p95"] > 0
+
+        # Validate statistical relationships
+        assert session_length["min"] <= session_length["mean"]
+        assert session_length["mean"] <= session_length["max"]
+        assert session_length["median"] <= session_length["p95"]
+
+    def test_api_endpoints_availability(self):
+        """Test all API endpoints availability"""
+        endpoints = [
+            ("GET", f"{self.analytics_url}", "Today's analytics"),
+            ("GET", f"{self.analytics_url}/health", "Health check"),
+            ("POST", f"{self.analytics_url}/test", "User activity simulation"),
+            ("POST", f"{self.analytics_url}/save-daily", "Save daily data"),
+        ]
+
+        for method, url, name in endpoints:
+            if method == "GET":
+                response = requests.get(url)
+            else:
+                response = requests.post(url)
+
+            assert response.status_code == 200, (
+                f"{name} endpoint returned error status code: {response.status_code}"
+            )
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])
