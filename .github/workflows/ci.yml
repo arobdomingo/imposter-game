@@ -38,7 +38,7 @@ jobs:
         
     - name: Set up environment variables
       run: |
-        echo "POSTGRES_HOST=127.0.0.1" >> $GITHUB_ENV
+        echo "POSTGRES_HOST=localhost" >> $GITHUB_ENV
         echo "POSTGRES_USER=user" >> $GITHUB_ENV
         echo "POSTGRES_PASSWORD=password" >> $GITHUB_ENV
         echo "POSTGRES_DB=user" >> $GITHUB_ENV
@@ -52,34 +52,20 @@ jobs:
           -e POSTGRES_DB=user \
           -p 5432:5432 \
           postgres:15
-        # wait for postgres inside container
-        timeout 60 bash -c 'until docker exec postgres-test pg_isready -U user -h 127.0.0.1; do sleep 1; done'
+        sleep 10
         
     - name: Run database migrations
       run: |
         uv run alembic upgrade head
-
-    - name: Ensure tables exist (safety net)
-      run: |
-        uv run python - <<'PY'
-        from user_service.models.user import Base
-        from event_service.models.event import Event  # noqa: F401
-        from user_service.models.friendship import Friendship  # noqa: F401
-        from shared import database as db
-        next(db.get_db())
-        Base.metadata.create_all(bind=db.engine)
-        print("tables ensured")
-        PY
         
     - name: Start application
       run: |
         uv run uvicorn src.user_service.api:app --host 0.0.0.0 --port 8000 &
-        # wait events route first (ensures DB interaction path is ready)
-        timeout 60 bash -c 'until curl -fsS http://127.0.0.1:8000/v2/events/ > /dev/null; do sleep 1; done'
+        sleep 10
         
-    - name: Wait for analytics health
+    - name: Wait for application to be ready
       run: |
-        timeout 60 bash -c 'until curl -fsS http://127.0.0.1:8000/v2/analytics/health > /dev/null; do sleep 1; done'
+        timeout 30 bash -c 'until curl -f http://localhost:8000/v2/analytics/health; do sleep 1; done'
         
     - name: Run all tests
       run: |

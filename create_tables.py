@@ -10,7 +10,9 @@ POSTGRES_HOST = os.environ.get("POSTGRES_HOST", "db")
 POSTGRES_DB = os.environ.get("POSTGRES_DB", "postgres")
 
 # --- Build database URL ---
-DATABASE_URL = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}/{POSTGRES_DB}"
+DATABASE_URL = (
+    f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}/{POSTGRES_DB}"
+)
 
 # --- Connect to DB ---
 engine = create_engine(DATABASE_URL)

@@ -1,46 +1,31 @@
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
-from user_service.models.friendship import FriendshipRepository, get_friendship_repository, FriendshipSchema
+from user_service.models.friendship import get_friendship_repository
+import traceback
 
 router = APIRouter(prefix="/friendships", tags=["Friendships"])
 
-# Request body for creating a friendship
-class FriendshipRequest(BaseModel):
-    requester_id: int
-    receiver_id: int
 
-# -------- Create a friend request --------
 @router.post("/request")
-async def create_friend_request(
-    body: FriendshipRequest,
-    repo: FriendshipRepository = Depends(get_friendship_repository),
+async def send_friend_request(
+    requester_id: int, receiver_id: int, repo=Depends(get_friendship_repository)
 ):
     try:
-        await repo.send_request(body.requester_id, body.receiver_id)
-        return {"status": "request sent"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        await repo.send_request(requester_id, receiver_id)
+        return {"message": "Friend request sent"}
+    except Exception:
+        print("Error in send_request:")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="Internal Server Error")
 
-# -------- Update a friend request --------
-@router.put("/update")
-async def update_friend_request(
-    requester_id: int,
-    receiver_id: int,
-    accept: bool = True,
-    repo: FriendshipRepository = Depends(get_friendship_repository),
+
+@router.post("/accept")
+async def accept_friend_request(
+    requester_id: int, receiver_id: int, repo=Depends(get_friendship_repository)
 ):
     try:
-        await repo.update_request(requester_id, receiver_id, accept)
-        return {"status": "updated"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-# -------- Get incoming requests --------
-@router.get("/incoming/{user_id}", response_model=list[FriendshipSchema])
-async def get_incoming(user_id: int, repo: FriendshipRepository = Depends(get_friendship_repository)):
-    return [FriendshipSchema.from_db_model(f) for f in await repo.get_incoming_requests(user_id)]
-
-# -------- Get outgoing requests --------
-@router.get("/outgoing/{user_id}", response_model=list[FriendshipSchema])
-async def get_outgoing(user_id: int, repo: FriendshipRepository = Depends(get_friendship_repository)):
-    return [FriendshipSchema.from_db_model(f) for f in await repo.get_outgoing_requests(user_id)]
+        await repo.accept_request(requester_id, receiver_id)
+        return {"message": "Friend request accepted"}
+    except Exception:
+        print("Error in accept_request:")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="Internal Server Error")

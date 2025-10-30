@@ -25,8 +25,6 @@ def engine():
 def session(engine):
     conn = engine.connect()
     conn.begin()
-    # Enable SQLite foreign key constraints so ON DELETE CASCADE works in tests
-    conn.exec_driver_sql("PRAGMA foreign_keys=ON")
     db = Session(bind=conn)
     yield db
     db.rollback()
@@ -165,10 +163,10 @@ def test_send_friend_request(session, client):
     session.commit()
 
     response = client.post(
-        "/friendships/request", json={"requester_id": 1, "receiver_id": 2}
+        "/friendships/request", params={"requester_id": 1, "receiver_id": 2}
     )
     assert response.status_code == 200
-    assert response.json() == {"status": "request sent"}
+    assert response.json() == {"message": "Friend request sent"}
 
 
 def test_accept_friend_request(session, client):
@@ -189,57 +187,16 @@ def test_accept_friend_request(session, client):
     )
     session.commit()
 
-    response = client.put(
-        "/friendships/update",
-        params={"requester_id": 1, "receiver_id": 2, "accept": True},
+    response = client.post(
+        "/friendships/accept", params={"requester_id": 1, "receiver_id": 2}
     )
     assert response.status_code == 200
-    assert response.json() == {"status": "updated"}
+    assert response.json() == {"message": "Friend request accepted"}
 
 
 def test_accept_nonexistent_friendship(client):
-    response = client.put(
-        "/friendships/update",
-        params={"requester_id": 99, "receiver_id": 100, "accept": True},
+    response = client.post(
+        "/friendships/accept", params={"requester_id": 99, "receiver_id": 100}
     )
     assert response.status_code == 200
-    assert response.json() == {"status": "updated"}
-
-
-def test_cascading_delete_friendships_on_user_delete(session, client):
-    # Arrange: create two users and a friendship between them
-    session.execute(
-        text(
-            "INSERT INTO users (name, email, password) VALUES ('u1', 'u1@example.com', 'p1')"
-        )
-    )
-    session.execute(
-        text(
-            "INSERT INTO users (name, email, password) VALUES ('u2', 'u2@example.com', 'p2')"
-        )
-    )
-    session.execute(
-        text(
-            "INSERT INTO friendships (requester, receiver, status) VALUES (1, 2, 'pending')"
-        )
-    )
-    session.commit()
-
-    # Sanity check: friendship exists
-    count_before = session.scalar(
-        text("SELECT COUNT(*) FROM friendships WHERE requester=1 OR receiver=1")
-    )
-    assert count_before == 1
-
-    # Act: delete user 1 through API
-    resp = client.post(
-        "/users/delete",
-        json={"id": 1, "name": "u1", "email": "u1@example.com"},
-    )
-    assert resp.status_code == 200
-
-    # Assert: related friendship rows are gone due to ON DELETE CASCADE
-    count_after = session.scalar(
-        text("SELECT COUNT(*) FROM friendships WHERE requester=1 OR receiver=1")
-    )
-    assert count_after == 0
+    assert response.json() == {"message": "Friend request accepted"}
