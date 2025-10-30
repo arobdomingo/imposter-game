@@ -97,7 +97,6 @@ class FriendshipRepository:
         print(f"[DB] Friendship accepted between {requester_id} and {receiver_id}")
 
 
-
 # ------------------ DEPENDENCY ------------------
 
 
