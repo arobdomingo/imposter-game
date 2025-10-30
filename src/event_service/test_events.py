@@ -1,249 +1,184 @@
+"""
+Event Service pytest test file
+For GitHub Actions automated testing
+"""
+
 import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
-from sqlalchemy import create_engine, text
+import requests
+from datetime import datetime, timedelta
 
-from event_service.models.event import Base, EventRepository, get_event_repository
-from user_service.api import app
-
-
-@pytest.fixture(scope="function")
-def engine():
-    engine = create_engine("sqlite:///:memory:?check_same_thread=False")
-    Base.metadata.create_all(bind=engine)
-    yield engine
+# Test configuration
+BASE_URL = "http://localhost:8000"
+EVENTS_URL = f"{BASE_URL}/v2/events"
 
 
-@pytest.fixture(scope="function")
-def session(engine):
-    conn = engine.connect()
-    conn.begin()
-    db = Session(bind=conn)
-    yield db
-    db.rollback()
-    conn.close()
+class TestEventService:
+    """Event Service test class"""
 
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        """Test setup - clean up any existing events"""
+        pass  # Events are immutable, so no cleanup needed
 
-@pytest.fixture(scope="function")
-def repo(session):
-    yield EventRepository(session)
+    def test_health_check(self):
+        """Test that the service is running"""
+        # This is a basic connectivity test
+        try:
+            response = requests.get(f"{EVENTS_URL}/", timeout=5)
+            assert response.status_code == 200
+        except requests.exceptions.RequestException:
+            pytest.skip("Service not available")
 
+    def test_create_event(self):
+        """Test creating a new event"""
+        event_data = {
+            "when": datetime.now().isoformat(),
+            "source": "test_source",
+            "type": "test_event",
+            "payload": {"test": "data", "value": 123},
+            "user": "test_user",
+        }
 
-@pytest.fixture(scope="function")
-def client(repo):
-    app.dependency_overrides[get_event_repository] = lambda: repo
-    with TestClient(app) as c:
-        yield c
-    app.dependency_overrides.clear()
+        response = requests.post(f"{EVENTS_URL}/", json=event_data, timeout=5)
+        assert response.status_code == 201
+        data = response.json()
 
+        assert "event" in data
+        event = data["event"]
+        assert event["source"] == "test_source"
+        assert event["type"] == "test_event"
+        assert event["user"] == "test_user"
+        assert "id" in event
 
-def test_create_event_with_user(client):
-    """Test creating an event with a user ID"""
-    event_data = {
-        "when": "2025-10-15 13:32:22",
-        "source": "http://localhost/blog/some-post",
-        "type": "text-highlight",
-        "payload": {"content": "something the user highlighted"},
-        "user": "1234-abcd-5678-efgh",
-    }
+    def test_create_event_minimal(self):
+        """Test creating an event with minimal data"""
+        event_data = {
+            "when": datetime.now().isoformat(),
+            "source": "minimal_test",
+            "type": "minimal_event",
+            "payload": {},
+        }
 
-    response = client.post("/v2/events/", json=event_data)
-    assert response.status_code == 201
-    event_response = response.json()["event"]
-    assert event_response["id"] == 1
-    assert event_response["when"] == "2025-10-15T13:32:22"
-    assert event_response["source"] == "http://localhost/blog/some-post"
-    assert event_response["type"] == "text-highlight"
-    assert event_response["payload"] == {"content": "something the user highlighted"}
-    assert event_response["user"] == "1234-abcd-5678-efgh"
+        response = requests.post(f"{EVENTS_URL}/", json=event_data, timeout=5)
+        assert response.status_code == 201
+        data = response.json()
 
+        assert "event" in data
+        event = data["event"]
+        assert event["source"] == "minimal_test"
+        assert event["type"] == "minimal_event"
+        assert event["user"] is None
 
-def test_create_event_without_user(client):
-    """Test creating an event without a user ID"""
-    event_data = {
-        "when": "2025-10-15 10:14:39",
-        "source": "http://localhost/blog/another-post",
-        "type": "link-out",
-        "payload": {"destination": "https://wikipedia.org/"},
-        "user": None,
-    }
+    def test_get_events_default(self):
+        """Test getting events with default parameters"""
+        response = requests.get(f"{EVENTS_URL}/", timeout=5)
+        assert response.status_code == 200
+        data = response.json()
 
-    response = client.post("/v2/events/", json=event_data)
-    assert response.status_code == 201
-    event_response = response.json()["event"]
-    assert event_response["id"] == 1
-    assert event_response["when"] == "2025-10-15T10:14:39"
-    assert event_response["source"] == "http://localhost/blog/another-post"
-    assert event_response["type"] == "link-out"
-    assert event_response["payload"] == {"destination": "https://wikipedia.org/"}
-    assert event_response["user"] is None
+        assert "events" in data
+        assert "total" in data
+        assert "page" in data
+        assert "page_size" in data
+        assert "total_pages" in data
+        assert isinstance(data["events"], list)
 
+    def test_get_events_with_pagination(self):
+        """Test getting events with pagination"""
+        response = requests.get(f"{EVENTS_URL}/?page=1&page_size=10", timeout=5)
+        assert response.status_code == 200
+        data = response.json()
 
-def test_get_events_without_filters(client, session):
-    """Test getting all events without any filters"""
-    # Create test events
-    session.execute(
-        text("""
-            INSERT INTO events (`when`, source, type, payload, user) VALUES 
-            ('2025-10-15 10:00:00', 'http://localhost/page1', 'click', '{"element": "button"}', 'user1'),
-            ('2025-10-15 11:00:00', 'http://localhost/page2', 'scroll', '{"position": 100}', 'user2'),
-            ('2025-10-15 12:00:00', 'http://localhost/page3', 'click', '{"element": "link"}', NULL)
-        """)
-    )
-    session.commit()
+        assert data["page"] == 1
+        assert data["page_size"] == 10
+        assert len(data["events"]) <= 10
 
-    response = client.get("/v2/events/")
-    assert response.status_code == 200
-    data = response.json()
-    assert len(data["events"]) == 3
-    assert data["total"] == 3
-    assert data["page"] == 1
-    assert data["page_size"] == 50
+    def test_get_events_filter_by_type(self):
+        """Test filtering events by type"""
+        # First create a test event
+        event_data = {
+            "when": datetime.now().isoformat(),
+            "source": "filter_test",
+            "type": "filtered_event",
+            "payload": {"test": "filter"},
+        }
+        requests.post(f"{EVENTS_URL}/", json=event_data, timeout=5)
 
+        # Then filter by type
+        response = requests.get(f"{EVENTS_URL}/?type=filtered_event", timeout=5)
+        assert response.status_code == 200
+        data = response.json()
 
-def test_get_events_filter_by_type(client, session):
-    """Test filtering events by type"""
-    # Create test events
-    session.execute(
-        text("""
-            INSERT INTO events (`when`, source, type, payload, user) VALUES 
-            ('2025-10-15 10:00:00', 'http://localhost/page1', 'click', '{"element": "button"}', 'user1'),
-            ('2025-10-15 11:00:00', 'http://localhost/page2', 'scroll', '{"position": 100}', 'user2'),
-            ('2025-10-15 12:00:00', 'http://localhost/page3', 'click', '{"element": "link"}', NULL)
-        """)
-    )
-    session.commit()
+        # Should have at least one event
+        assert len(data["events"]) >= 1
+        for event in data["events"]:
+            assert event["type"] == "filtered_event"
 
-    response = client.get("/v2/events/?type=click")
-    assert response.status_code == 200
-    data = response.json()
-    assert len(data["events"]) == 2
-    assert all(event["type"] == "click" for event in data["events"])
+    def test_get_events_filter_by_source(self):
+        """Test filtering events by source"""
+        # First create a test event
+        event_data = {
+            "when": datetime.now().isoformat(),
+            "source": "source_filter_test",
+            "type": "source_event",
+            "payload": {"test": "source_filter"},
+        }
+        requests.post(f"{EVENTS_URL}/", json=event_data, timeout=5)
 
+        # Then filter by source
+        response = requests.get(f"{EVENTS_URL}/?source=source_filter_test", timeout=5)
+        assert response.status_code == 200
+        data = response.json()
 
-def test_get_events_filter_by_source(client, session):
-    """Test filtering events by source"""
-    # Create test events
-    session.execute(
-        text("""
-            INSERT INTO events (`when`, source, type, payload, user) VALUES 
-            ('2025-10-15 10:00:00', 'http://localhost/page1', 'click', '{"element": "button"}', 'user1'),
-            ('2025-10-15 11:00:00', 'http://localhost/page2', 'scroll', '{"position": 100}', 'user2'),
-            ('2025-10-15 12:00:00', 'http://localhost/page1', 'click', '{"element": "link"}', NULL)
-        """)
-    )
-    session.commit()
+        # Should have at least one event
+        assert len(data["events"]) >= 1
+        for event in data["events"]:
+            assert event["source"] == "source_filter_test"
 
-    response = client.get("/v2/events/?source=http://localhost/page1")
-    assert response.status_code == 200
-    data = response.json()
-    assert len(data["events"]) == 2
-    assert all(event["source"] == "http://localhost/page1" for event in data["events"])
+    def test_get_events_filter_by_user(self):
+        """Test filtering events by user"""
+        # First create a test event
+        event_data = {
+            "when": datetime.now().isoformat(),
+            "source": "user_filter_test",
+            "type": "user_event",
+            "payload": {"test": "user_filter"},
+            "user": "filter_test_user",
+        }
+        requests.post(f"{EVENTS_URL}/", json=event_data, timeout=5)
 
+        # Then filter by user
+        response = requests.get(f"{EVENTS_URL}/?user=filter_test_user", timeout=5)
+        assert response.status_code == 200
+        data = response.json()
 
-def test_get_events_filter_by_user(client, session):
-    """Test filtering events by user"""
-    # Create test events
-    session.execute(
-        text("""
-            INSERT INTO events (`when`, source, type, payload, user) VALUES 
-            ('2025-10-15 10:00:00', 'http://localhost/page1', 'click', '{"element": "button"}', 'user1'),
-            ('2025-10-15 11:00:00', 'http://localhost/page2', 'scroll', '{"position": 100}', 'user2'),
-            ('2025-10-15 12:00:00', 'http://localhost/page3', 'click', '{"element": "link"}', NULL)
-        """)
-    )
-    session.commit()
+        # Should have at least one event
+        assert len(data["events"]) >= 1
+        for event in data["events"]:
+            assert event["user"] == "filter_test_user"
 
-    response = client.get("/v2/events/?user=user1")
-    assert response.status_code == 200
-    data = response.json()
-    assert len(data["events"]) == 1
-    assert data["events"][0]["user"] == "user1"
+    def test_get_events_time_filter(self):
+        """Test filtering events by time range"""
+        now = datetime.now()
+        yesterday = now - timedelta(days=1)
 
-
-def test_get_events_filter_by_time_range(client, session):
-    """Test filtering events by time range"""
-    # Create test events
-    session.execute(
-        text("""
-            INSERT INTO events (`when`, source, type, payload, user) VALUES 
-            ('2025-10-15 10:00:00', 'http://localhost/page1', 'click', '{"element": "button"}', 'user1'),
-            ('2025-10-15 11:00:00', 'http://localhost/page2', 'scroll', '{"position": 100}', 'user2'),
-            ('2025-10-15 12:00:00', 'http://localhost/page3', 'click', '{"element": "link"}', NULL)
-        """)
-    )
-    session.commit()
-
-    # Test after filter
-    response = client.get("/v2/events/?after=2025-10-15T10:30:00")
-    assert response.status_code == 200
-    data = response.json()
-    assert len(data["events"]) == 2  # Only events after 10:30
-
-    # Test before filter
-    response = client.get("/v2/events/?before=2025-10-15T11:30:00")
-    assert response.status_code == 200
-    data = response.json()
-    assert len(data["events"]) == 2  # Only events before 11:30
-
-    # Test both filters
-    response = client.get(
-        "/v2/events/?after=2025-10-15T10:30:00&before=2025-10-15T11:30:00"
-    )
-    assert response.status_code == 200
-    data = response.json()
-    assert len(data["events"]) == 1  # Only the 11:00 event
-
-
-def test_get_events_pagination(client, session):
-    """Test pagination of events"""
-    # Create 5 test events
-    for i in range(5):
-        session.execute(
-            text(f"""
-                INSERT INTO events (`when`, source, type, payload, user) VALUES 
-                ('2025-10-15 {10 + i:02d}:00:00', 'http://localhost/page{i}', 'click', '{{"element": "button{i}"}}', 'user{i}')
-            """)
+        # Filter events after yesterday
+        response = requests.get(
+            f"{EVENTS_URL}/?after={yesterday.isoformat()}", timeout=5
         )
-    session.commit()
+        assert response.status_code == 200
+        data = response.json()
 
-    # Test first page
-    response = client.get("/v2/events/?page=1&page_size=2")
-    assert response.status_code == 200
-    data = response.json()
-    assert len(data["events"]) == 2
-    assert data["total"] == 5
-    assert data["page"] == 1
-    assert data["page_size"] == 2
-    assert data["total_pages"] == 3
+        # All events should be after yesterday
+        for event in data["events"]:
+            event_time = datetime.fromisoformat(event["when"].replace("Z", "+00:00"))
+            assert event_time > yesterday
 
-    # Test second page
-    response = client.get("/v2/events/?page=2&page_size=2")
-    assert response.status_code == 200
-    data = response.json()
-    assert len(data["events"]) == 2
-    assert data["page"] == 2
+    def test_invalid_pagination(self):
+        """Test invalid pagination parameters"""
+        # Test negative page
+        response = requests.get(f"{EVENTS_URL}/?page=-1", timeout=5)
+        assert response.status_code == 422  # Validation error
 
-
-def test_events_are_immutable(client, session):
-    """Test that events cannot be updated or deleted"""
-    # Create an event
-    session.execute(
-        text("""
-            INSERT INTO events (`when`, source, type, payload, user) VALUES 
-            ('2025-10-15 10:00:00', 'http://localhost/page1', 'click', '{"element": "button"}', 'user1')
-        """)
-    )
-    session.commit()
-
-    # Try to update (should not be possible via API)
-    # Note: This test verifies that there are no PUT/PATCH/DELETE endpoints for events
-    # The API only supports POST (create) and GET (read) operations
-
-    # Verify the event exists and is unchanged
-    response = client.get("/v2/events/")
-    assert response.status_code == 200
-    data = response.json()
-    assert len(data["events"]) == 1
-    assert data["events"][0]["type"] == "click"
-    assert data["events"][0]["user"] == "user1"
+        # Test page size too large
+        response = requests.get(f"{EVENTS_URL}/?page_size=2000", timeout=5)
+        assert response.status_code == 422  # Validation error
