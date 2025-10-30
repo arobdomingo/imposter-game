@@ -15,17 +15,15 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 config = context.config
 
 section = config.config_ini_section
-config.set_section_option(section, "DATABASE_HOST", os.environ.get("POSTGRES_HOST", "localhost"))
-config.set_section_option(section, "DATABASE_USER", os.environ.get("POSTGRES_USER", "user"))
-config.set_section_option(section, "DATABASE_PASSWORD", os.environ.get("POSTGRES_PASSWORD", "password"))
-config.set_section_option(section, "DATABASE_NAME", os.environ.get("POSTGRES_DB", "postgres"))
-
-db_url = f"postgresql+psycopg2://{os.environ['POSTGRES_USER']}:" \
-         f"{os.environ['POSTGRES_PASSWORD']}@" \
-         f"{os.environ['POSTGRES_HOST']}:" \
-         f"{os.environ.get('POSTGRES_PORT', 5432)}/" \
-         f"{os.environ['POSTGRES_DB']}"
-config.set_main_option("sqlalchemy.url", db_url)
+config.set_section_option(
+    section, "DATABASE_HOST", os.environ.get("POSTGRES_HOST", "localhost")
+)
+config.set_section_option(
+    section, "DATABASE_USER", os.environ.get("POSTGRES_USER", "user")
+)
+config.set_section_option(
+    section, "DATABASE_PASSWORD", os.environ.get("POSTGRES_PASSWORD", "password")
+)
 
 # ---------------- Logging ----------------
 if config.config_file_name is not None:
