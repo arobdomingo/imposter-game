@@ -7,6 +7,12 @@ COPY --from=ghcr.io/astral-sh/uv:0.8.22 /uv /uvx /bin/
 # Set working directory inside container
 WORKDIR /app
 
+# Copy only the src folder into /app/src
+COPY ./src /app/src
+COPY alembic.ini /app/alembic.ini
+COPY alembic /app/alembic
+
+# Set PYTHONPATH so imports like user_service.models work
 ENV PYTHONPATH=/app/src
 
 # Install dependencies
