@@ -4,7 +4,6 @@ COPY --from=ghcr.io/astral-sh/uv:0.8.22 /uv /uvx /bin/
 COPY . /app
 WORKDIR /app
 
-
 ENV PYTHONPATH=/app/src
 
 RUN pip install -e .
