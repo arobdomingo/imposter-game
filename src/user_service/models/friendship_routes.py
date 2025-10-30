@@ -8,6 +8,10 @@ from user_service.models.friendship import (
 
 router = APIRouter(prefix="/friendships", tags=["Friendships"])
 
+# Request body for creating a friendship
+class FriendshipRequest(BaseModel):
+    requester_id: int
+    receiver_id: int
 
 # Request body for creating a friendship
 class FriendshipRequest(BaseModel):

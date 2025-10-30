@@ -18,6 +18,13 @@ class Friendship(Base):
     )
     status: Mapped[str] = mapped_column(String, nullable=False)  # "pending", "accepted"
 
+    requester: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    receiver: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    status: Mapped[str] = mapped_column(String, nullable=False)  # "pending", "accepted"
 
 # ------------------ REPOSITORY ------------------
 class FriendshipRepository:
@@ -27,14 +34,8 @@ class FriendshipRepository:
     async def send_request(self, requester_id: int, receiver_id: int) -> None:
         existing = self.session.scalar(
             select(Friendship).where(
-                (
-                    (Friendship.requester == requester_id)
-                    & (Friendship.receiver == receiver_id)
-                )
-                | (
-                    (Friendship.requester == receiver_id)
-                    & (Friendship.receiver == requester_id)
-                )
+                ((Friendship.requester == requester_id) & (Friendship.receiver == receiver_id))
+                | ((Friendship.requester == receiver_id) & (Friendship.receiver == requester_id))
             )
         )
         if existing:
@@ -98,7 +99,6 @@ class FriendshipRepository:
 # ------------------ DEPENDENCY ------------------
 def get_friendship_repository(db: Session = Depends(get_db)) -> FriendshipRepository:
     return FriendshipRepository(db)
-
 
 # ------------------ SCHEMA ------------------
 class FriendshipSchema(BaseModel):

@@ -10,10 +10,12 @@ services:
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}  # ✅ Ensures the database is created
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data # Persists data to a named volume
+      - postgres_data:/var/lib/postgresql  # ✅ Correct path for data persistence
+
   web:
     build: .
     depends_on:
@@ -34,4 +36,5 @@ services:
           target: /app/
 
 volumes:
-  postgres_data: # Defines the named volume for data persistence
+  postgres_data:
+
