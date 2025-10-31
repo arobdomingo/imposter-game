@@ -1,6 +1,10 @@
-import pytest, os
-from user_service.models.user import Base
+import pytest
+import os
 from shared.database import get_db
+
+from PIL import Image
+from io import BytesIO
+
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy import create_engine, text
@@ -9,12 +13,11 @@ from user_service.api import app
 
 from .models.user import Base, UserRepository, get_user_repository
 from .models.friendship import (
-    Friendship,  # noqa: F401 - Imported to register table with Base.metadata
+    Friendship,  
     FriendshipRepository,
     get_friendship_repository,
 )
 
-from .api import app
 # Ensure testing mode
 os.environ["TESTING"] = "1"
 
