@@ -91,7 +91,38 @@ AVATAR_DIRECTORY = os.getenv(
 )  # looks for AVATAR_DIRECTORY and sets path as media/avatars if it doesn't
 os.makedirs(AVATAR_DIRECTORY, exist_ok=True)  # create media/avatars path if required
 
-# Legacy upload avatar method:
+async def get_current_user(
+    authorization: Optional[str] = Header(None),
+    user_repo: UserRepository = Depends(get_user_repository)
+):
+    """Verify HTTP Basic Auth and return authenticated user"""
+    if not authorization or not authorization.startswith("Basic "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    
+    # Decode Basic Auth
+    import base64
+    try:
+        credentials = base64.b64decode(authorization[6:]).decode("utf-8")
+        username, password = credentials.split(":", 1)
+    except:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication credentials",
+        )
+    
+    # Authenticate user
+    user = await user_repo.authenticate(username, password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid username or password",
+        )
+    
+    return user
 
 
 @app.put("/users/{id}/avatar", status_code=201)
@@ -279,6 +310,116 @@ async def get_user(id: int, user_repo: UserRepository = Depends(get_user_reposit
         return {"user": UserResponseSchema.from_db_model(user)}
     return {"user": None}
 
+# V2 API Endpoints
+
+@app.get("/v2/users/", response_model=PaginatedUsersResponse)
+async def list_users_v2(
+    page: int = Query(1, ge=1, description="Page number"),
+    page_size: int = Query(50, ge=1, le=1000, description="Number of users per page"),
+    user_repo: UserRepository = Depends(get_user_repository),
+):
+    """Get paginated list of users (V2)"""
+    user_models, total_count = await user_repo.get_paginated(page, page_size)
+    users = [UserSchema.from_db_model(model) for model in user_models]
+    total_pages = math.ceil(total_count / page_size) if total_count > 0 else 0
+    
+    return PaginatedUsersResponse(
+        users=users,
+        total=total_count,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages,
+    )
+
+@app.get("/v2/users/{user_name}")
+async def get_user_by_name_v2(
+    user_name: str,
+    user_repo: UserRepository = Depends(get_user_repository)
+):
+    """Get user by name (V2)"""
+    user = await user_repo.get_by_name(user_name)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {"user": UserSchema.from_db_model(user)}
+
+@app.get("/v2/users/{user_id}")
+async def get_user_by_id_v2(
+    user_id: int,
+    user_repo: UserRepository = Depends(get_user_repository)
+):
+    """Get user by id (V2)"""
+    user = await user_repo.get_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {"user": UserSchema.from_db_model(user)}
+
+@app.post("/v2/users/", status_code=201)
+async def create_user_v2(
+    user: UserCreateSchema,
+    response: Response,
+    user_repo: UserRepository = Depends(get_user_repository)
+):
+    """Create a new user (V2)"""
+    try:
+        new_user = await user_repo.create(user.name, user.email, user.password)
+        return {"user": UserSchema.from_db_model(new_user)}
+    except IntegrityError:
+        response.status_code = 409
+        return {"detail": "Item already exists"}
+
+@app.patch("/v2/users/{user_id}")
+async def update_user_v2(
+    user_id: int,
+    update_data: UserUpdateSchema,
+    current_user: User = Depends(get_current_user),
+    user_repo: UserRepository = Depends(get_user_repository)
+):
+    """Update user (authenticated, V2)"""
+    # Verify user is updating their own account
+    if current_user.id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only update your own account"
+        )
+    
+    try:
+        updated_user = await user_repo.update(
+            user_id=user_id,
+            name=update_data.name,
+            email=update_data.email,
+            password=update_data.password,
+            new_password=update_data.new_password
+        )
+        
+        if not updated_user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        return {"user": UserSchema.from_db_model(updated_user)}
+    
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except IntegrityError:
+        raise HTTPException(status_code=409, detail="Name or email already exists")
+
+@app.delete("/v2/users/{user_id}", status_code=204)
+async def delete_user_v2(
+    user_id: int,
+    current_user: User = Depends(get_current_user),
+    user_repo: UserRepository = Depends(get_user_repository)
+):
+    """Delete user (authenticated, V2)"""
+    # Verify user is deleting their own account
+    if current_user.id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only delete your own account"
+        )
+    
+    result = await user_repo.delete(user_id)
+    if result.rowcount == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return Response(status_code=204)
 
 @app.post("/users/delete", status_code=200)
 async def delete_user(
