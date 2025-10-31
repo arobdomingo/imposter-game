@@ -4,7 +4,6 @@ from sqlalchemy.orm import declarative_base, Session, mapped_column, Mapped
 from sqlalchemy.exc import IntegrityError
 from fastapi import Depends
 from typing import Tuple
-from sqlalchemy import Integer
 import bcrypt
 
 
@@ -13,14 +12,17 @@ from shared.database import get_db
 
 Base = declarative_base()
 
+
 def hash_password(password: str) -> str:
     """Hash a password"""
-    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a password against a hash"""
-    return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
-
+    return bcrypt.checkpw(
+        plain_password.encode("utf-8"), hashed_password.encode("utf-8")
+    )
 
 
 class User(Base):
@@ -60,25 +62,32 @@ class UserRepository:
         result = self.session.execute(stmt)
         self.session.commit()
         return result
-    
-    async def update(self, user_id: int, name: str = None, email: str = None, password: str = None, new_password: str = None):
+
+    async def update(
+        self,
+        user_id: int,
+        name: str = None,
+        email: str = None,
+        password: str = None,
+        new_password: str = None,
+    ):
         """Update user fields"""
         user = await self.get_by_id(user_id)
         if not user:
             return None
-        
+
         # If changing password, verify current password first
         if new_password:
             if not password or not verify_password(password, user.password):
                 raise ValueError("Invalid current password")
             user.password = hash_password(new_password)
-        
+
         # Update other fields if provided
         if name:
             user.name = name
         if email:
             user.email = email
-        
+
         self.session.commit()
         self.session.refresh(user)
         return user
@@ -89,7 +98,7 @@ class UserRepository:
         if not user or not verify_password(password, user.password):
             return None
         return user
-    
+
     async def get_all(self) -> list[User]:
         """Get all users"""
         users = self.session.scalars(select(User)).all()
@@ -160,12 +169,15 @@ class UserCreateSchema(BaseModel):
     email: str
     password: str
 
+
 class UserUpdateSchema(BaseModel):
     """Schema for updating a user"""
+
     name: str = None
     email: str = None
     password: str = None
     new_password: str = None
+
 
 class PaginatedUsersResponse(BaseModel):
     """

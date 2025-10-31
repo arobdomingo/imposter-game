@@ -3,6 +3,8 @@ import logging
 import math
 from io import BytesIO
 from datetime import datetime, timedelta, timezone
+from typing import Optional
+import binascii
 from fastapi import (
     UploadFile,
     File,
@@ -12,6 +14,8 @@ from fastapi import (
     Depends,
     Response,
     Query,
+    Header,
+    status,
 )
 from fastapi.responses import FileResponse
 from time import time
@@ -25,8 +29,10 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from admin.main import ui
 from .models.user import (
     UserRepository,
+    User,
     UserSchema,
     UserCreateSchema,
+    UserUpdateSchema,
     UserResponseSchema,
     PaginatedUsersResponse,
     get_user_repository,
@@ -91,9 +97,10 @@ AVATAR_DIRECTORY = os.getenv(
 )  # looks for AVATAR_DIRECTORY and sets path as media/avatars if it doesn't
 os.makedirs(AVATAR_DIRECTORY, exist_ok=True)  # create media/avatars path if required
 
+
 async def get_current_user(
     authorization: Optional[str] = Header(None),
-    user_repo: UserRepository = Depends(get_user_repository)
+    user_repo: UserRepository = Depends(get_user_repository),
 ):
     """Verify HTTP Basic Auth and return authenticated user"""
     if not authorization or not authorization.startswith("Basic "):
@@ -102,18 +109,19 @@ async def get_current_user(
             detail="Authentication required",
             headers={"WWW-Authenticate": "Basic"},
         )
-    
+
     # Decode Basic Auth
     import base64
+
     try:
         credentials = base64.b64decode(authorization[6:]).decode("utf-8")
         username, password = credentials.split(":", 1)
-    except:
+    except (binascii.Error, ValueError, UnicodeDecodeError):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication credentials",
         )
-    
+
     # Authenticate user
     user = await user_repo.authenticate(username, password)
     if not user:
@@ -121,7 +129,7 @@ async def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid username or password",
         )
-    
+
     return user
 
 
@@ -310,7 +318,9 @@ async def get_user(id: int, user_repo: UserRepository = Depends(get_user_reposit
         return {"user": UserResponseSchema.from_db_model(user)}
     return {"user": None}
 
+
 # V2 API Endpoints
+
 
 @app.get("/v2/users/", response_model=PaginatedUsersResponse)
 async def list_users_v2(
@@ -322,7 +332,7 @@ async def list_users_v2(
     user_models, total_count = await user_repo.get_paginated(page, page_size)
     users = [UserSchema.from_db_model(model) for model in user_models]
     total_pages = math.ceil(total_count / page_size) if total_count > 0 else 0
-    
+
     return PaginatedUsersResponse(
         users=users,
         total=total_count,
@@ -331,10 +341,10 @@ async def list_users_v2(
         total_pages=total_pages,
     )
 
+
 @app.get("/v2/users/{user_name}")
 async def get_user_by_name_v2(
-    user_name: str,
-    user_repo: UserRepository = Depends(get_user_repository)
+    user_name: str, user_repo: UserRepository = Depends(get_user_repository)
 ):
     """Get user by name (V2)"""
     user = await user_repo.get_by_name(user_name)
@@ -342,10 +352,10 @@ async def get_user_by_name_v2(
         raise HTTPException(status_code=404, detail="User not found")
     return {"user": UserSchema.from_db_model(user)}
 
+
 @app.get("/v2/users/{user_id}")
 async def get_user_by_id_v2(
-    user_id: int,
-    user_repo: UserRepository = Depends(get_user_repository)
+    user_id: int, user_repo: UserRepository = Depends(get_user_repository)
 ):
     """Get user by id (V2)"""
     user = await user_repo.get_by_id(user_id)
@@ -353,11 +363,12 @@ async def get_user_by_id_v2(
         raise HTTPException(status_code=404, detail="User not found")
     return {"user": UserSchema.from_db_model(user)}
 
+
 @app.post("/v2/users/", status_code=201)
 async def create_user_v2(
     user: UserCreateSchema,
     response: Response,
-    user_repo: UserRepository = Depends(get_user_repository)
+    user_repo: UserRepository = Depends(get_user_repository),
 ):
     """Create a new user (V2)"""
     try:
@@ -367,59 +378,62 @@ async def create_user_v2(
         response.status_code = 409
         return {"detail": "Item already exists"}
 
+
 @app.patch("/v2/users/{user_id}")
 async def update_user_v2(
     user_id: int,
     update_data: UserUpdateSchema,
     current_user: User = Depends(get_current_user),
-    user_repo: UserRepository = Depends(get_user_repository)
+    user_repo: UserRepository = Depends(get_user_repository),
 ):
     """Update user (authenticated, V2)"""
     # Verify user is updating their own account
     if current_user.id != user_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You can only update your own account"
+            detail="You can only update your own account",
         )
-    
+
     try:
         updated_user = await user_repo.update(
             user_id=user_id,
             name=update_data.name,
             email=update_data.email,
             password=update_data.password,
-            new_password=update_data.new_password
+            new_password=update_data.new_password,
         )
-        
+
         if not updated_user:
             raise HTTPException(status_code=404, detail="User not found")
-        
+
         return {"user": UserSchema.from_db_model(updated_user)}
-    
+
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except IntegrityError:
         raise HTTPException(status_code=409, detail="Name or email already exists")
 
+
 @app.delete("/v2/users/{user_id}", status_code=204)
 async def delete_user_v2(
     user_id: int,
     current_user: User = Depends(get_current_user),
-    user_repo: UserRepository = Depends(get_user_repository)
+    user_repo: UserRepository = Depends(get_user_repository),
 ):
     """Delete user (authenticated, V2)"""
     # Verify user is deleting their own account
     if current_user.id != user_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You can only delete your own account"
+            detail="You can only delete your own account",
         )
-    
+
     result = await user_repo.delete(user_id)
     if result.rowcount == 0:
         raise HTTPException(status_code=404, detail="User not found")
-    
+
     return Response(status_code=204)
+
 
 @app.post("/users/delete", status_code=200)
 async def delete_user(

@@ -104,11 +104,17 @@ def client(repo, friendship_repo):
 @pytest.fixture(scope="function")
 def created_user(session):
     from user_service.models.user import hash_password
+
     hashed = hash_password("foopass")
     user_data = {"name": "foo", "email": "foo@example.com", "password": hashed}
-    session.execute(text("INSERT INTO users (name, email, password) VALUES (:name, :email, :password)"), user_data)
+    session.execute(
+        text(
+            "INSERT INTO users (name, email, password) VALUES (:name, :email, :password)"
+        ),
+        user_data,
+    )
     session.commit()
-    return {"name": "foo", "email": "foo@example.com", "password": "foopass"}  
+    return {"name": "foo", "email": "foo@example.com", "password": "foopass"}
 
 
 def test_read_user(client, created_user):
@@ -117,6 +123,7 @@ def test_read_user(client, created_user):
     assert response.json() == {
         "user": {"id": 1, "name": "foo", "email": "foo@example.com"}
     }
+
 
 def test_create_user(client):
     response = client.post(
