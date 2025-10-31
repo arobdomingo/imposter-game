@@ -103,27 +103,20 @@ def client(repo, friendship_repo):
 
 @pytest.fixture(scope="function")
 def created_user(session):
-    user_data = {"name": "foo", "email": "foo@example.com", "password": "foopass"}
-    session.execute(
-        text(
-            "INSERT INTO users (name, email, password) VALUES (:name, :email, :password)"
-        ),
-        user_data,
-    )
+    from user_service.models.user import hash_password
+    hashed = hash_password("foopass")
+    user_data = {"name": "foo", "email": "foo@example.com", "password": hashed}
+    session.execute(text("INSERT INTO users (name, email, password) VALUES (:name, :email, :password)"), user_data)
     session.commit()
-    return user_data
+    return {"name": "foo", "email": "foo@example.com", "password": "foopass"}  
 
 
 def test_read_user(client, created_user):
     response = client.get("/users/1")
     assert response.status_code == 200
-    user_response = response.json()["user"]
-    assert user_response["id"] == 1
-    assert user_response["name"] == "foo"
-    assert user_response["email"] == "foo@example.com"
-    # Password should NOT be in response (security)
-    assert "password" not in user_response
-
+    assert response.json() == {
+        "user": {"id": 1, "name": "foo", "email": "foo@example.com"}
+    }
 
 def test_create_user(client):
     response = client.post(
@@ -131,12 +124,9 @@ def test_create_user(client):
         json={"name": "foobar", "email": "foobar@example.com", "password": "foobar"},
     )
     assert response.status_code == 201
-    user_response = response.json()["user"]
-    assert user_response["id"] == 1
-    assert user_response["name"] == "foobar"
-    assert user_response["email"] == "foobar@example.com"
-    # Password should NOT be in response (security)
-    assert "password" not in user_response
+    assert response.json() == {
+        "user": {"id": 1, "name": "foobar", "email": "foobar@example.com"}
+    }
 
 
 def test_create_existing_user(client, created_user):
