@@ -27,6 +27,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       AUTH_TTL_SECONDS: 3600
+      TESTING: "1"
     develop:
       watch:
         - action: sync+restart

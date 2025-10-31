@@ -2,10 +2,21 @@ import os
 import logging
 import math
 from io import BytesIO
-from fastapi import UploadFile, File, HTTPException, Body, FastAPI, Depends, Response, Query
+from datetime import datetime, timedelta, timezone
+from fastapi import (
+    UploadFile,
+    File,
+    HTTPException,
+    Body,
+    FastAPI,
+    Depends,
+    Response,
+    Query,
+)
 from fastapi.responses import FileResponse
 from time import time
 from PIL import Image, UnidentifiedImageError
+from jose import jwt, JWTError
 
 from sqlalchemy.exc import IntegrityError
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -298,18 +309,21 @@ async def create_auth_token(
 
     try:
         expiry = datetime.strptime(expiry_str, "%Y-%m-%d %H:%M:%S")
+        # Assume UTC timezone if not specified
+        expiry = expiry.replace(tzinfo=timezone.utc)
     except ValueError:
         raise HTTPException(400, "Invalid datetime format (YYYY-MM-DD HH:MM:SS)")
 
     # Enforce max duration 1 hour
-    max_expiry = datetime.utcnow() + timedelta(hours=1)
+    max_expiry = datetime.now(timezone.utc) + timedelta(hours=1)
     if expiry > max_expiry:
         expiry = max_expiry
 
-    header = {"alg": "RS256", "typ": "JWT"}
-    payload = {"sub": str(user.id), "exp": expiry}
+    # Convert datetime to Unix timestamp for JWT exp claim
+    expiry_timestamp = int(expiry.timestamp())
+    payload = {"sub": str(user.id), "exp": expiry_timestamp}
 
-    token = jwt.encode(header, payload, PRIVATE_KEY).decode()
+    token = jwt.encode(payload, PRIVATE_KEY, algorithm="RS256")
 
     # Invalidate previous token and save new one
     await user_repo.update_jwt(user.id, token)
@@ -324,9 +338,8 @@ async def delete_auth_token(
 ):
     token = payload.get("jwt")
     try:
-        data = jwt.decode(token, PUBLIC_KEY)
-        data.validate()
-    except JoseError:
+        data = jwt.decode(token, PUBLIC_KEY, algorithms=["RS256"])
+    except JWTError:
         raise HTTPException(401, "Invalid or expired JWT")
 
     user = await user_repo.get_by_id(int(data["sub"]))
@@ -339,9 +352,8 @@ async def delete_auth_token(
 
 async def verify_jwt(token: str, user_repo: UserRepository):
     try:
-        data = jwt.decode(token, PUBLIC_KEY)
-        data.validate()
-    except JoseError:
+        data = jwt.decode(token, PUBLIC_KEY, algorithms=["RS256"])
+    except JWTError:
         return None
 
     user = await user_repo.get_by_id(int(data["sub"]))
