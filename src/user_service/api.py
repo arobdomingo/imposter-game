@@ -1,16 +1,17 @@
 import os
+import logging
+import math
 from io import BytesIO
-from fastapi import UploadFile, File, HTTPException, Body
+from fastapi import UploadFile, File, HTTPException, Body, FastAPI, Depends, Response, Query
 from fastapi.responses import FileResponse
-
+from time import time
 from PIL import Image, UnidentifiedImageError
 from datetime import datetime, timedelta
 from authlib.jose import jwt, JoseError
 
-from fastapi import FastAPI, Depends, Response, Query
 from sqlalchemy.exc import IntegrityError
-import logging
-import math
+from starlette.middleware.base import BaseHTTPMiddleware
+
 
 from admin.main import ui
 from .models.user import (
@@ -27,15 +28,8 @@ from analytics.routes.analytics_routes import router as analytics_router
 
 logger = logging.getLogger("uvicorn.error")
 
-from starlette.middleware.base import BaseHTTPMiddleware
-from time import time
-import jwt  # PyJWT library
-from jwt import PyJWTError
-from .models.user import UserRepository
-app = FastAPI()
 
-from starlette.middleware.base import BaseHTTPMiddleware
-from time import time
+app = FastAPI()
 
 rate_limits = {}  # { key: (count, window_start) }
 
@@ -43,20 +37,7 @@ rate_limits = {}  # { key: (count, window_start) }
 SECRET_KEY = "your-secret-key"
 ALGORITHM = "HS256"
 
-async def verify_jwt(token: str, user_repo: UserRepository):
-    """
-    Verifies JWT token and returns the corresponding user if valid.
-    """
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: int = payload.get("user_id")
-        if user_id is None:
-            return None
-        user = await user_repo.get_by_id(user_id)
-        return user
-    except PyJWTError:
-        return None
-    
+
 class RateLimiterMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         if os.environ.get("TESTING") == "1":
@@ -92,6 +73,7 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
         return response
 
+
 app.add_middleware(RateLimiterMiddleware)
 
 
@@ -103,22 +85,6 @@ os.makedirs(AVATAR_DIRECTORY, exist_ok=True)  # create media/avatars path if req
 # Legacy upload avatar method:
 
 
-'''@app.put("/users/{id}/avatar", status_code=201, response_model=None)
-async def upload_avatar(
-    id: int, file: UploadFile = File(...), user_repo=Depends(get_user_repository)
-):
-    """Upload a profile picture for a user"""
-    user = await user_repo.get_by_id(id)
-    if not user:
-        raise HTTPException(404, "User not found")
-
-    raw_image = await file.read()
-    image = process_and_crop_image(raw_image)
-
-    destination = os.path.join(AVATAR_DIRECTORY, f"{id}_avatar.jpg")
-    image.save(destination, format="JPEG", quality=80, optimize=True)
-
-    return {"message": "Avatar uploaded successfully"}'''
 @app.put("/users/{id}/avatar", status_code=201)
 async def upload_avatar(
     id: int, file: UploadFile = File(...), user_repo=Depends(get_user_repository)
@@ -318,6 +284,7 @@ async def delete_user(
     await user_repo.delete(existing_user.id)
     return {"message": "User deleted successfully", "user": {"name": user.name}}
 
+
 @app.post("/v2/authentications/")
 async def create_auth_token(
     payload: dict = Body(...),
@@ -351,6 +318,7 @@ async def create_auth_token(
 
     return {"jwt": token}
 
+
 @app.delete("/v2/authentications/")
 async def delete_auth_token(
     payload: dict = Body(...),
@@ -369,6 +337,7 @@ async def delete_auth_token(
 
     await user_repo.update_jwt(user.id, None)
     return {"message": "JWT invalidated"}
+
 
 async def verify_jwt(token: str, user_repo: UserRepository):
     try:
@@ -425,4 +394,3 @@ with open(PUBLIC_KEY_PATH, "rb") as f:
     PUBLIC_KEY = f.read()
 
 app.include_router(analytics_router)
-
