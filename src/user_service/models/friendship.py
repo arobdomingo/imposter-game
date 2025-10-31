@@ -1,5 +1,13 @@
 from pydantic import BaseModel
-from sqlalchemy import select, insert, update, String, Integer
+from sqlalchemy import (
+    select,
+    insert,
+    update,
+    delete as sa_delete,
+    String,
+    Integer,
+    or_,
+)
 from sqlalchemy.orm import Session, mapped_column, Mapped
 from fastapi import Depends
 from shared.database import get_db
@@ -95,6 +103,85 @@ class FriendshipRepository:
         self.session.execute(stmt)
         self.session.commit()
         print(f"[DB] Friendship accepted between {requester_id} and {receiver_id}")
+
+    async def reject_request(self, requester_id: int, receiver_id: int) -> None:
+        existing = self.session.scalar(
+            select(Friendship).where(
+                (Friendship.requester == requester_id)
+                & (Friendship.receiver == receiver_id)
+                & (Friendship.status == "pending")
+            )
+        )
+        if not existing:
+            return
+        # Simple reject -> delete pending
+        self.session.execute(
+            sa_delete(Friendship).where(
+                (Friendship.requester == requester_id)
+                & (Friendship.receiver == receiver_id)
+                & (Friendship.status == "pending")
+            )
+        )
+        self.session.commit()
+
+    async def cancel_request(self, requester_id: int, receiver_id: int) -> None:
+        # requester cancels their own pending request
+        self.session.execute(
+            sa_delete(Friendship).where(
+                (Friendship.requester == requester_id)
+                & (Friendship.receiver == receiver_id)
+                & (Friendship.status == "pending")
+            )
+        )
+        self.session.commit()
+
+    async def get_incoming_requests(self, user_id: int) -> list[Friendship]:
+        rows = self.session.scalars(
+            select(Friendship).where(
+                (Friendship.receiver == user_id) & (Friendship.status == "pending")
+            )
+        ).all()
+        return list(rows)
+
+    async def get_outgoing_requests(self, user_id: int) -> list[Friendship]:
+        rows = self.session.scalars(
+            select(Friendship).where(
+                (Friendship.requester == user_id) & (Friendship.status == "pending")
+            )
+        ).all()
+        return list(rows)
+
+    async def list_friends(self, user_id: int) -> list[Friendship]:
+        rows = self.session.scalars(
+            select(Friendship).where(
+                (Friendship.status == "accepted")
+                & (or_(Friendship.requester == user_id, Friendship.receiver == user_id))
+            )
+        ).all()
+        return list(rows)
+
+    async def delete_friendship(self, user_id: int, friend_id: int) -> None:
+        self.session.execute(
+            sa_delete(Friendship).where(
+                (Friendship.status == "accepted")
+                & (
+                    (Friendship.requester == user_id)
+                    & (Friendship.receiver == friend_id)
+                    | (Friendship.requester == friend_id)
+                    & (Friendship.receiver == user_id)
+                )
+            )
+        )
+        self.session.commit()
+
+    async def delete_all_for_user(self, user_id: int) -> None:
+        # remove both pending and accepted involving the user
+        self.session.execute(
+            sa_delete(Friendship).where(
+                or_(Friendship.requester == user_id, Friendship.receiver == user_id)
+            )
+        )
+        self.session.commit()
 
 
 # ------------------ DEPENDENCY ------------------

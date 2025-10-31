@@ -40,6 +40,7 @@ from .models.user import (
 from .models.friendship_routes import router as friendship_router
 from event_service.models.event_routes import router as event_router
 from analytics.routes.analytics_routes import router as analytics_router
+from .models.friendship import FriendshipRepository, get_friendship_repository
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -419,6 +420,7 @@ async def delete_user_v2(
     user_id: int,
     current_user: User = Depends(get_current_user),
     user_repo: UserRepository = Depends(get_user_repository),
+    fr_repo: FriendshipRepository = Depends(get_friendship_repository),
 ):
     """Delete user (authenticated, V2)"""
     # Verify user is deleting their own account
@@ -428,6 +430,8 @@ async def delete_user_v2(
             detail="You can only delete your own account",
         )
 
+    # cascade delete friendships and requests
+    await fr_repo.delete_all_for_user(user_id)
     result = await user_repo.delete(user_id)
     if result.rowcount == 0:
         raise HTTPException(status_code=404, detail="User not found")
@@ -525,6 +529,184 @@ app.include_router(event_router)
 
 # Include analytics routes
 app.include_router(analytics_router)
+
+# ================== V2 Friend Requests ==================
+
+
+@app.get("/v2/users/{user_id}/friend-requests/")
+async def get_friend_requests_v2(
+    user_id: int,
+    q: str = Query("incoming", pattern="^(incoming|outgoing)$"),
+    repo: FriendshipRepository = Depends(get_friendship_repository),
+    user_repo: UserRepository = Depends(get_user_repository),
+):
+    user = await user_repo.get_by_id(user_id)
+    if not user:
+        raise HTTPException(404, "User not found")
+    if q == "incoming":
+        rows = await repo.get_incoming_requests(user_id)
+    else:
+        rows = await repo.get_outgoing_requests(user_id)
+    return {
+        "requests": [
+            {"from": r.requester, "to": r.receiver, "status": r.status} for r in rows
+        ]
+    }
+
+
+@app.post("/v2/users/{user_id}/friend-requests/", status_code=201)
+async def create_friend_request_v2(
+    user_id: int,
+    payload: dict = Body(...),
+    current_user: User = Depends(get_current_user),
+    repo: FriendshipRepository = Depends(get_friendship_repository),
+    user_repo: UserRepository = Depends(get_user_repository),
+):
+    if current_user.id != user_id:
+        raise HTTPException(status_code=403, detail="You can only act as yourself")
+    other_id = payload.get("to")
+    if not isinstance(other_id, int):
+        raise HTTPException(400, "Missing 'to' user id")
+    if other_id == user_id:
+        raise HTTPException(400, "Cannot friend-request yourself")
+    if not await user_repo.get_by_id(other_id):
+        raise HTTPException(404, "Target user not found")
+    await repo.send_request(user_id, other_id)
+    return {"message": "Friend request sent"}
+
+
+@app.patch("/v2/users/{user_id}/friend-requests/{other_id}")
+async def respond_friend_request_v2(
+    user_id: int,
+    other_id: int,
+    payload: dict = Body(...),
+    current_user: User = Depends(get_current_user),
+    repo: FriendshipRepository = Depends(get_friendship_repository),
+    user_repo: UserRepository = Depends(get_user_repository),
+):
+    if current_user.id != user_id:
+        raise HTTPException(status_code=403, detail="You can only act as yourself")
+    if not await user_repo.get_by_id(other_id):
+        raise HTTPException(404, "Other user not found")
+    action = payload.get("action", "accept")
+    if action == "accept":
+        await repo.accept_request(other_id, user_id)
+        return {"message": "Friend request accepted"}
+    elif action == "reject":
+        await repo.reject_request(other_id, user_id)
+        return {"message": "Friend request rejected"}
+    else:
+        raise HTTPException(400, "Invalid action. Use 'accept' or 'reject'")
+
+
+@app.delete("/v2/users/{user_id}/friend-requests/{other_id}", status_code=204)
+async def cancel_friend_request_v2(
+    user_id: int,
+    other_id: int,
+    current_user: User = Depends(get_current_user),
+    repo: FriendshipRepository = Depends(get_friendship_repository),
+    user_repo: UserRepository = Depends(get_user_repository),
+):
+    if current_user.id != user_id:
+        raise HTTPException(status_code=403, detail="You can only act as yourself")
+    if not await user_repo.get_by_id(other_id):
+        raise HTTPException(404, "Other user not found")
+    await repo.cancel_request(user_id, other_id)
+    return Response(status_code=204)
+
+
+# ================== V2 Friends ==================
+
+
+def _friend_ids_for(user_id: int, friendships: list) -> list[int]:
+    ids = []
+    for f in friendships:
+        ids.append(f.requester if f.receiver == user_id else f.receiver)
+    return ids
+
+
+@app.get("/v2/users/{user_id}/friends/")
+async def list_friends_v2(
+    user_id: int,
+    repo: FriendshipRepository = Depends(get_friendship_repository),
+    user_repo: UserRepository = Depends(get_user_repository),
+):
+    if not await user_repo.get_by_id(user_id):
+        raise HTTPException(404, "User not found")
+    friendships = await repo.list_friends(user_id)
+    friend_ids = _friend_ids_for(user_id, friendships)
+    users = [await user_repo.get_by_id(fid) for fid in friend_ids]
+    return {"friends": [UserSchema.from_db_model(u).__dict__ for u in users if u]}
+
+
+@app.get("/v2/users/{user_id}/friends/{friend_name}")
+async def get_friend_by_name_v2(
+    user_id: int,
+    friend_name: str,
+    repo: FriendshipRepository = Depends(get_friendship_repository),
+    user_repo: UserRepository = Depends(get_user_repository),
+):
+    if not await user_repo.get_by_id(user_id):
+        raise HTTPException(404, "User not found")
+    target = await user_repo.get_by_name(friend_name)
+    if not target:
+        raise HTTPException(404, "Friend not found")
+    friendships = await repo.list_friends(user_id)
+    if target.id not in _friend_ids_for(user_id, friendships):
+        raise HTTPException(404, "Friend not found")
+    return {"friend": UserSchema.from_db_model(target)}
+
+
+@app.get("/v2/users/{user_id}/friends/{friend_id}")
+async def get_friend_by_id_v2(
+    user_id: int,
+    friend_id: int,
+    repo: FriendshipRepository = Depends(get_friendship_repository),
+    user_repo: UserRepository = Depends(get_user_repository),
+):
+    if not await user_repo.get_by_id(user_id):
+        raise HTTPException(404, "User not found")
+    target = await user_repo.get_by_id(friend_id)
+    if not target:
+        raise HTTPException(404, "Friend not found")
+    friendships = await repo.list_friends(user_id)
+    if friend_id not in _friend_ids_for(user_id, friendships):
+        raise HTTPException(404, "Friend not found")
+    return {"friend": UserSchema.from_db_model(target)}
+
+
+@app.delete("/v2/users/{user_id}/friends/{friend_name}", status_code=204)
+async def delete_friend_by_name_v2(
+    user_id: int,
+    friend_name: str,
+    current_user: User = Depends(get_current_user),
+    repo: FriendshipRepository = Depends(get_friendship_repository),
+    user_repo: UserRepository = Depends(get_user_repository),
+):
+    if current_user.id != user_id:
+        raise HTTPException(status_code=403, detail="You can only act as yourself")
+    friend = await user_repo.get_by_name(friend_name)
+    if not friend:
+        raise HTTPException(404, "Friend not found")
+    await repo.delete_friendship(user_id, friend.id)
+    return Response(status_code=204)
+
+
+@app.delete("/v2/users/{user_id}/friends/{friend_id}", status_code=204)
+async def delete_friend_by_id_v2(
+    user_id: int,
+    friend_id: int,
+    current_user: User = Depends(get_current_user),
+    repo: FriendshipRepository = Depends(get_friendship_repository),
+    user_repo: UserRepository = Depends(get_user_repository),
+):
+    if current_user.id != user_id:
+        raise HTTPException(status_code=403, detail="You can only act as yourself")
+    if not await user_repo.get_by_id(friend_id):
+        raise HTTPException(404, "Friend not found")
+    await repo.delete_friendship(user_id, friend_id)
+    return Response(status_code=204)
+
 
 ui.run_with(app, mount_path="/admin", favicon="👤", title="User Admin")
 
