@@ -43,6 +43,7 @@ jobs:
         echo "POSTGRES_PASSWORD=password" >> $GITHUB_ENV
         echo "POSTGRES_DB=user" >> $GITHUB_ENV
         echo "AUTH_TTL_SECONDS=3600" >> $GITHUB_ENV
+        echo "TESTING=1" >> $GITHUB_ENV
         
     - name: Start PostgreSQL service
       run: |
@@ -60,7 +61,7 @@ jobs:
         
     - name: Start application
       run: |
-        uv run uvicorn src.user_service.api:app --host 0.0.0.0 --port 8000 &
+        TESTING=1 uv run uvicorn src.user_service.api:app --host 0.0.0.0 --port 8000 &
         sleep 10
         
     - name: Wait for application to be ready
