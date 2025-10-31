@@ -6,6 +6,7 @@ from shared.database import get_db
 
 from user_service.models.user import Base  # Inherit from your SQLAlchemy Base
 
+
 # ------------------ DATABASE MODEL ------------------
 
 
