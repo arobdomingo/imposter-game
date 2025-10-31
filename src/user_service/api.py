@@ -29,6 +29,9 @@ logger = logging.getLogger("uvicorn.error")
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from time import time
+import jwt  # PyJWT library
+from jwt import PyJWTError
+from .models.user import UserRepository
 app = FastAPI()
 
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -36,6 +39,24 @@ from time import time
 
 rate_limits = {}  # { key: (count, window_start) }
 
+
+SECRET_KEY = "your-secret-key"
+ALGORITHM = "HS256"
+
+async def verify_jwt(token: str, user_repo: UserRepository):
+    """
+    Verifies JWT token and returns the corresponding user if valid.
+    """
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id: int = payload.get("user_id")
+        if user_id is None:
+            return None
+        user = await user_repo.get_by_id(user_id)
+        return user
+    except PyJWTError:
+        return None
+    
 class RateLimiterMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         if os.environ.get("TESTING") == "1":
