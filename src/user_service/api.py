@@ -26,7 +26,11 @@ from event_service.models.event_routes import router as event_router
 from analytics.routes.analytics_routes import router as analytics_router
 
 logger = logging.getLogger("uvicorn.error")
+
+from starlette.middleware.base import BaseHTTPMiddleware
+from time import time
 app = FastAPI()
+
 from starlette.middleware.base import BaseHTTPMiddleware
 from time import time
 
@@ -68,6 +72,7 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
         return response
 
 app.add_middleware(RateLimiterMiddleware)
+
 
 AVATAR_DIRECTORY = os.getenv(
     "AVATAR_DIRECTORY", "media/avatars"

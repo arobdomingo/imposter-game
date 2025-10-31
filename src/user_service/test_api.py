@@ -1,12 +1,9 @@
 import pytest
 import os
+from PIL import Image
+from io import BytesIO
+from user_service.models.user import Base
 from shared.database import get_db
-
-from PIL import Image
-from io import BytesIO
-
-from PIL import Image
-from io import BytesIO
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy import create_engine, text
@@ -67,6 +64,53 @@ def user_data():
         "password": "password123",
     }
 
+
+# Ensure testing mode
+os.environ["TESTING"] = "1"
+
+# Create a single in-memory SQLite engine for all tests
+engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# Create all tables once
+Base.metadata.create_all(bind=engine)
+
+# Override get_db dependency to use SQLite for testing
+def override_get_db():
+    db = TestingSessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+app.dependency_overrides[get_user_repository] = lambda: UserRepository(next(override_get_db()))
+app.dependency_overrides[get_friendship_repository] = lambda: FriendshipRepository(next(override_get_db()))
+
+@pytest.fixture(scope="function")
+def db_session():
+    """Provide a transactional scope around each test."""
+    connection = engine.connect()
+    transaction = connection.begin()
+    session = Session(bind=connection)
+    try:
+        yield session
+    finally:
+        session.rollback()
+        connection.close()
+
+@pytest.fixture(scope="function")
+def client():
+    with TestClient(app) as c:
+        yield c
+
+
+@pytest.fixture
+def user_data():
+    return {
+        "name": "testuser",
+        "email": "test@example.com",
+        "password": "password123",
+    }
 
 
 @pytest.fixture(scope="function")
