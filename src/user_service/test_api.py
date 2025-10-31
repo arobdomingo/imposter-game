@@ -5,65 +5,17 @@ from io import BytesIO
 from user_service.models.user import Base
 from shared.database import get_db
 from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import Session
 from sqlalchemy import create_engine, text
-from user_service.api import app
-
 
 from .models.user import Base, UserRepository, get_user_repository
 from .models.friendship import (
-    Friendship,  
+    Friendship,  # noqa: F401 - Imported to register table with Base.metadata
     FriendshipRepository,
     get_friendship_repository,
 )
 
-# Ensure testing mode
-os.environ["TESTING"] = "1"
-
-# Create a single in-memory SQLite engine for all tests
-engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-# Create all tables once
-Base.metadata.create_all(bind=engine)
-
-# Override get_db dependency to use SQLite for testing
-def override_get_db():
-    db = TestingSessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-app.dependency_overrides[get_user_repository] = lambda: UserRepository(next(override_get_db()))
-app.dependency_overrides[get_friendship_repository] = lambda: FriendshipRepository(next(override_get_db()))
-
-@pytest.fixture(scope="function")
-def db_session():
-    """Provide a transactional scope around each test."""
-    connection = engine.connect()
-    transaction = connection.begin()
-    session = Session(bind=connection)
-    try:
-        yield session
-    finally:
-        session.rollback()
-        connection.close()
-
-@pytest.fixture(scope="function")
-def client():
-    with TestClient(app) as c:
-        yield c
-
-
-@pytest.fixture
-def user_data():
-    return {
-        "name": "testuser",
-        "email": "test@example.com",
-        "password": "password123",
-    }
-
+from .api import app
 
 # Ensure testing mode
 os.environ["TESTING"] = "1"
@@ -123,14 +75,11 @@ def engine():
 @pytest.fixture(scope="function")
 def session(engine):
     conn = engine.connect()
-    trans=conn.begin()
+    conn.begin()
     db = Session(bind=conn)
-    try:
-        yield db
-    finally:
-        trans.rollback()
-        db.rollback()
-        conn.close()
+    yield db
+    db.rollback()
+    conn.close()
 
 
 @pytest.fixture(scope="function")
@@ -349,14 +298,15 @@ def test_delete_user(client, created_user):
     """Test deleting a user account"""
     response = client.post(
         "/users/delete",
-        json={"id": created_user["id"]},
+        json={"id": 1, "name": "foo", "email": "foo@example.com"},
     )
     assert response.status_code == 200
     assert response.json() == {
         "message": "User deleted successfully",
+        "user": {"name": "foo"},
     }
     # Verify user is actually deleted
-    get_response = client.get(f"/users/{created_user['id']}")
+    get_response = client.get("/users/1")
     assert get_response.json() == {"user": None}
 
 
@@ -364,7 +314,7 @@ def test_delete_nonexistent_user(client):
     """Test deleting non-existent user"""
     response = client.post(
         "/users/delete",
-        json={"id": 999},  # only send id
+        json={"id": 999, "name": "nonexistent", "email": "none@example.com"},
     )
     assert response.status_code == 404
     assert response.json() == {"detail": "User not found"}
@@ -424,45 +374,3 @@ def test_accept_nonexistent_friendship(client):
     )
     assert response.status_code == 200
     assert response.json() == {"message": "Friend request accepted"}
-
-def test_jwt_login_and_auth(client, user_data):
-    # Create the user first
-    client.post("/users/", json={
-        "name": user_data["name"],
-        "email": user_data["email"],
-        "password": user_data["password"]
-    })
-
-    # Then login to get JWT
-    res = client.post("/v2/authentications/", json={
-        "name": user_data["name"],
-        "password": user_data["password"],
-        "expiry": "2025-10-30 10:00:00"
-    })
-    assert res.status_code == 200
-    data = res.json()
-    assert "jwt" in data
-
-def test_rate_limit(client, user_data):
-    # Create user before login
-    client.post("/users/", json={
-        "name": user_data["name"],
-        "email": user_data["email"],
-        "password": user_data["password"]
-    })
-
-    # Login to get JWT
-    res = client.post("/v2/authentications/", json={
-        "name": user_data["name"],
-        "password": user_data["password"],
-        "expiry": "2025-10-30 10:00:00"
-    })
-    assert res.status_code == 200
-    jwt = res.json()["jwt"]
-
-    headers = {"Authorization": f"Bearer {jwt}"}
-
-    # Make multiple requests to trigger rate limit
-    for _ in range(3):
-        res = client.get("/users/", headers=headers)
-    assert res.status_code in (200, 429)

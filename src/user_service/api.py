@@ -6,8 +6,6 @@ from fastapi import UploadFile, File, HTTPException, Body, FastAPI, Depends, Res
 from fastapi.responses import FileResponse
 from time import time
 from PIL import Image, UnidentifiedImageError
-from datetime import datetime, timedelta
-from authlib.jose import jwt, JoseError
 
 from sqlalchemy.exc import IntegrityError
 from starlette.middleware.base import BaseHTTPMiddleware

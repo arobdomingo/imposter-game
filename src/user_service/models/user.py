@@ -1,10 +1,9 @@
 from pydantic import BaseModel
-from sqlalchemy import select, delete, String, func, Integer, DateTime, text
+from sqlalchemy import select, delete, String, func, Integer
 from sqlalchemy.orm import declarative_base, Session, mapped_column, Mapped
 from sqlalchemy.exc import IntegrityError
 from fastapi import Depends
 from typing import Tuple
-from datetime import datetime
 
 from shared.database import get_db
 
@@ -22,9 +21,6 @@ class User(Base):
     name: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
     email: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
     password: Mapped[str] = mapped_column(String, nullable=False)
-    tier: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("1"))  # New field
-    current_jwt: Mapped[str | None] = mapped_column(String, nullable=True)
-
 
 
 class UserRepository:
@@ -82,17 +78,6 @@ class UserRepository:
         """Get user by id"""
         user = self.session.scalar(select(User).where(User.id == id))
         return user
-    
-    async def update_jwt(self, user_id: int, jwt_token: str | None):
-        """Set or clear the user's current active JWT"""
-        user = self.session.get(User, user_id)
-        if user:
-            user.current_jwt = jwt_token
-            self.session.commit()
-    
-    async def get_by_jwt(self, jwt_token: str) -> User | None:
-        return self.session.scalar(select(User).where(User.current_jwt == jwt_token))
-
 
 
 def get_user_repository(db: Session = Depends(get_db)) -> UserRepository:
@@ -107,12 +92,11 @@ class UserSchema(BaseModel):
     id: int
     name: str
     email: str
-    tier: int
 
     @classmethod
     def from_db_model(cls, user: User) -> "UserSchema":
         """Create a UserSchema from a User (without password for security)"""
-        return cls(id=user.id, name=user.name, email=user.email, tier=user.tier)
+        return cls(id=user.id, name=user.name, email=user.email)
 
 
 class UserResponseSchema(BaseModel):
@@ -121,12 +105,11 @@ class UserResponseSchema(BaseModel):
     id: int
     name: str
     email: str
-    tier: int
 
     @classmethod
     def from_db_model(cls, user: User) -> "UserResponseSchema":
         """Create a UserResponseSchema from a User"""
-        return cls(id=user.id, name=user.name, email=user.email, tier=user.tier)
+        return cls(id=user.id, name=user.name, email=user.email)
 
 
 class UserCreateSchema(BaseModel):
@@ -147,6 +130,3 @@ class PaginatedUsersResponse(BaseModel):
     page: int
     page_size: int
     total_pages: int
-
-class DeleteUserRequest(BaseModel):
-    id: int
