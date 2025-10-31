@@ -2,6 +2,13 @@ from fastapi import APIRouter, Query
 from datetime import date, timedelta
 from typing import Optional
 import statistics
+from fastapi import FastAPI
+
+app = FastAPI()
+
+from fastapi import APIRouter, HTTPException, Depends
+from sqlalchemy.orm import Session
+from user_service.models.user import get_user_repository, UserRepository, DeleteUserRequest
 
 router = APIRouter(prefix="/v2/analytics", tags=["Analytics"])
 
@@ -179,3 +186,17 @@ async def reset_analytics_data():
 async def health_check():
     """Health check"""
     return {"status": "healthy", "message": "Analytics service is working"}
+
+@router.post("/users/delete")
+async def delete_user(
+    req: DeleteUserRequest,
+    repo: UserRepository = Depends(get_user_repository)
+):
+    user = await repo.get_by_id(req.id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    await repo.delete(req.id)
+    return {"message": "User deleted successfully"}
+
+app.include_router(router)
