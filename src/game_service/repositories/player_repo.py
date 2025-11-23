@@ -41,7 +41,9 @@ class PlayerRepository:
         return list(self.session.scalars(stmt).all())
 
     async def get_by_user(self, game_id: int, user_id: int) -> Optional[Player]:
-        stmt = select(Player).where(Player.game_id == game_id, Player.user_id == user_id)
+        stmt = select(Player).where(
+            Player.game_id == game_id, Player.user_id == user_id
+        )
         return self.session.scalar(stmt)
 
     async def get_by_id(self, player_id: int) -> Optional[Player]:
@@ -70,6 +72,3 @@ class PlayerRepository:
 
 async def get_player_repository(db: Session = Depends(get_db)) -> PlayerRepository:
     return PlayerRepository(db)
-
-
-

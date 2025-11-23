@@ -47,21 +47,24 @@ class ClueRepository:
         return self.session.scalar(stmt)
 
     async def list_by_game(self, game_id: int) -> list[Clue]:
-        stmt = select(Clue).where(Clue.game_id == game_id).order_by(
-            Clue.round_number, Clue.submitted_at
+        stmt = (
+            select(Clue)
+            .where(Clue.game_id == game_id)
+            .order_by(Clue.round_number, Clue.submitted_at)
         )
         return list(self.session.scalars(stmt).all())
 
     async def list_by_round(self, game_id: int, round_number: int) -> list[Clue]:
-        stmt = select(Clue).where(
-            Clue.game_id == game_id,
-            Clue.round_number == round_number,
-        ).order_by(Clue.submitted_at)
+        stmt = (
+            select(Clue)
+            .where(
+                Clue.game_id == game_id,
+                Clue.round_number == round_number,
+            )
+            .order_by(Clue.submitted_at)
+        )
         return list(self.session.scalars(stmt).all())
 
 
 async def get_clue_repository(db: Session = Depends(get_db)) -> ClueRepository:
     return ClueRepository(db)
-
-
-

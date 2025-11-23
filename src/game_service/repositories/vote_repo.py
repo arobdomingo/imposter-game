@@ -16,7 +16,9 @@ class VoteRepository:
     def __init__(self, session: Session):
         self.session = session
 
-    async def create(self, game_id: int, voter_id: int, target_id: Optional[int]) -> Vote:
+    async def create(
+        self, game_id: int, voter_id: int, target_id: Optional[int]
+    ) -> Vote:
         vote = Vote(game_id=game_id, voter_id=voter_id, target_id=target_id)
         self.session.add(vote)
         self.session.commit()
@@ -39,6 +41,3 @@ class VoteRepository:
 
 async def get_vote_repository(db: Session = Depends(get_db)) -> VoteRepository:
     return VoteRepository(db)
-
-
-

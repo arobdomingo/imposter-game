@@ -21,6 +21,3 @@ class GameStateSchema(BaseModel):
     players: list[PlayerStateSchema]
     clues: list[ClueResponseSchema]
     votes: list[VoteResultSchema]
-
-
-

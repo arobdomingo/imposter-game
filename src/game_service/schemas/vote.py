@@ -13,6 +13,3 @@ class VoteResultSchema(BaseModel):
     voter_id: int
     target_id: int | None
     created_at: datetime
-
-
-

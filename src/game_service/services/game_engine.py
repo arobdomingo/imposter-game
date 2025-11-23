@@ -17,7 +17,7 @@ from game_service.repositories import (
     get_clue_repository,
     get_vote_repository,
 )
-from game_service.services.word_service import WordService, get_word_service
+from game_service.services.word_service import WordService
 
 
 @dataclass
@@ -47,7 +47,9 @@ class GameEngine:
         self.word_service = word_service
         self.config = config or GameEngineConfig()
 
-    async def start_game(self, lobby_id: int, player_user_ids: Sequence[int], mode: str) -> int:
+    async def start_game(
+        self, lobby_id: int, player_user_ids: Sequence[int], mode: str
+    ) -> int:
         """Create a game, assign players, and return game id."""
         game = await self.game_repo.create(lobby_id=lobby_id, mode=mode)
         await self.lobby_repo.update_status(lobby_id, "playing")

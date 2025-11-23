@@ -30,6 +30,3 @@ class LobbyPlayerSchema(BaseModel):
 class LobbyStateSchema(BaseModel):
     lobby: LobbyResponseSchema
     players: list[LobbyPlayerSchema]
-
-
-
