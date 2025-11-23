@@ -33,6 +33,9 @@ if config.config_file_name is not None:
 
 # Import metadata
 from user_service.models.user import Base  # noqa: E402
+import user_service.models.friendship  # noqa: F401,E402
+import event_service.models.event  # noqa: F401,E402
+import game_service.models  # noqa: F401,E402
 
 target_metadata = Base.metadata
 
