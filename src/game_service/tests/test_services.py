@@ -11,14 +11,14 @@ from game_service.services import WordService, WordPair, GameEngine, GameEngineC
 
 
 def test_word_service_modes():
-    service = WordService([WordPair("共同", "内鬼")])
+    service = WordService([WordPair("common", "impostor")])
     common, impostor = service.get_words(mode="aware")
-    assert common == "共同"
+    assert common == "common"
     assert impostor is None
 
     common2, impostor2 = service.get_words(mode="unaware")
-    assert common2 == "共同"
-    assert impostor2 == "内鬼"
+    assert common2 == "common"
+    assert impostor2 == "impostor"
 
 
 @pytest.mark.asyncio
@@ -41,7 +41,7 @@ async def test_game_engine_start_game(session, users):
         player_repo=player_repo,
         clue_repo=clue_repo,
         vote_repo=vote_repo,
-        word_service=WordService([WordPair("共同", "内鬼词")]),
+        word_service=WordService([WordPair("common", "impostor word")]),
         config=GameEngineConfig(max_players=4, total_rounds=3),
     )
 
@@ -60,7 +60,7 @@ async def test_game_engine_start_game(session, users):
 
     impostor = [p for p in players if p.is_imposter][0]
     assert impostor.user_id == users[1].id
-    assert impostor.word == "内鬼词"
+    assert impostor.word == "impostor word"
 
     crew_words = {p.word for p in players if not p.is_imposter}
-    assert crew_words == {"共同"}
+    assert crew_words == {"common"}

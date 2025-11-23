@@ -8,6 +8,3 @@ class PlayerStateSchema(BaseModel):
     is_imposter: bool
     word: str | None = None
     score: int
-
-
-

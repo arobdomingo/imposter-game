@@ -5,6 +5,7 @@ Revises: b18ed38da594
 Create Date: 2025-11-10 05:38:24.702315
 
 """
+
 from typing import Sequence, Union
 
 from alembic import op
@@ -143,7 +144,9 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.func.now(),
         ),
-        sa.UniqueConstraint("game_id", "player_id", "round_number", name="uq_clues_per_round"),
+        sa.UniqueConstraint(
+            "game_id", "player_id", "round_number", name="uq_clues_per_round"
+        ),
     )
     op.create_index(op.f("ix_clues_game_id"), "clues", ["game_id"], unique=False)
     op.create_index(op.f("ix_clues_player_id"), "clues", ["player_id"], unique=False)

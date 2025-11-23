@@ -32,17 +32,10 @@ class LobbyRepository:
         return self.session.scalar(stmt)
 
     async def update_status(self, lobby_id: int, status: str) -> None:
-        stmt = (
-            update(Lobby)
-            .where(Lobby.id == lobby_id)
-            .values(status=status)
-        )
+        stmt = update(Lobby).where(Lobby.id == lobby_id).values(status=status)
         self.session.execute(stmt)
         self.session.commit()
 
 
 async def get_lobby_repository(db: Session = Depends(get_db)) -> LobbyRepository:
     return LobbyRepository(db)
-
-
-

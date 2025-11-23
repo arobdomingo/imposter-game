@@ -17,6 +17,3 @@ class ClueResponseSchema(BaseModel):
     clue_word: str
     skipped: bool
     submitted_at: datetime
-
-
-

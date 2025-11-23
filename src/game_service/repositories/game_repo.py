@@ -31,7 +31,9 @@ class GameRepository:
         stmt = select(Game).where(Game.lobby_id == lobby_id, Game.status != "finished")
         return self.session.scalar(stmt)
 
-    async def update_status(self, game_id: int, status: str, current_round: Optional[int] = None) -> None:
+    async def update_status(
+        self, game_id: int, status: str, current_round: Optional[int] = None
+    ) -> None:
         values: dict[str, object] = {"status": status}
         if current_round is not None:
             values["current_round"] = current_round
@@ -42,6 +44,3 @@ class GameRepository:
 
 async def get_game_repository(db: Session = Depends(get_db)) -> GameRepository:
     return GameRepository(db)
-
-
-

@@ -11,7 +11,10 @@ class Game(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     lobby_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("lobbies.id", ondelete="CASCADE"), nullable=False, index=True
+        Integer,
+        ForeignKey("lobbies.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="waiting")
     mode: Mapped[str] = mapped_column(String(16), nullable=False, default="aware")
@@ -19,6 +22,3 @@ class Game(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
-
-
-
