@@ -28,16 +28,16 @@ class WordService:
     @staticmethod
     def _default_pairs() -> list[WordPair]:
         return [
-            WordPair("苹果", "香蕉"),
-            WordPair("电脑", "电视"),
-            WordPair("海洋", "沙漠"),
-            WordPair("篮球", "足球"),
-            WordPair("咖啡", "茶"),
-            WordPair("山脉", "平原"),
-            WordPair("猫", "狗"),
-            WordPair("春天", "冬天"),
-            WordPair("火车", "飞机"),
-            WordPair("老师", "医生"),
+            WordPair("apple", "banana"),
+            WordPair("computer", "television"),
+            WordPair("ocean", "desert"),
+            WordPair("basketball", "football"),
+            WordPair("coffee", "tea"),
+            WordPair("mountain", "plain"),
+            WordPair("cat", "dog"),
+            WordPair("spring", "winter"),
+            WordPair("train", "airplane"),
+            WordPair("teacher", "doctor"),
         ]
 
 

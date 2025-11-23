@@ -81,14 +81,14 @@ async def test_clue_repository(session, users):
     player = await player_repo.add_player(game.id, users[0].id, seat_no=1)
 
     repo = ClueRepository(session)
-    clue = await repo.create(game.id, player.id, round_number=1, clue_word="水果")
-    assert clue.clue_word == "水果"
+    clue = await repo.create(game.id, player.id, round_number=1, clue_word="fruit")
+    assert clue.clue_word == "fruit"
 
     fetched = await repo.get_by_player_round(game.id, player.id, 1)
     assert fetched.id == clue.id
 
     with pytest.raises(IntegrityError):
-        await repo.create(game.id, player.id, round_number=1, clue_word="重复")
+        await repo.create(game.id, player.id, round_number=1, clue_word="duplicate")
     session.rollback()
 
     clues = await repo.list_by_game(game.id)
