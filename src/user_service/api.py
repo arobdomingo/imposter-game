@@ -41,6 +41,8 @@ from .models.friendship_routes import router as friendship_router
 from event_service.models.event_routes import router as event_router
 from analytics.routes.analytics_routes import router as analytics_router
 from .models.friendship import FriendshipRepository, get_friendship_repository
+from game_service.routes import lobby_router
+from game_service.websocket import lobby_ws_router, game_ws_router
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -529,6 +531,13 @@ app.include_router(event_router)
 
 # Include analytics routes
 app.include_router(analytics_router)
+
+# Include game service routes
+app.include_router(lobby_router)
+
+# Include WebSocket routes
+app.include_router(lobby_ws_router)
+app.include_router(game_ws_router)
 
 # ================== V2 Friend Requests ==================
 
