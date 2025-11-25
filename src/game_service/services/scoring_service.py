@@ -37,7 +37,7 @@ class ScoringService:
         players = self.player_repo.list_by_game(game_id)
         votes = self.vote_repo.list_by_game(game_id)
 
-        player_map = {p.id: p for p in players}
+        #player_map = {p.id: p for p in players}
         impostors = [p for p in players if p.is_imposter]
         impostor_ids = [p.id for p in impostors]
 

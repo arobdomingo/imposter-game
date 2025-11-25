@@ -1,5 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from typing import List, Dict, Any
+from fastapi import APIRouter, Depends, HTTPException
 
 from game_service.schemas.clue import ClueSubmitSchema, ClueResponseSchema
 from game_service.repositories.clue_repo import get_clue_repository, ClueRepository
