@@ -1,5 +1,6 @@
 import pytest
-from httpx import AsyncClient
+#from httpx import AsyncClient
+from httpx import AsyncClient, ASGITransport
 
 from admin.main import app  
 
@@ -29,7 +30,9 @@ async def test_vote_and_scoring_flow(session, users):
     for p in [p1, p2, p3, p4]:
         await clue_repo.create(game.id, p.id, round_number=1, clue_word="x")
 
-    async with AsyncClient(app=app, base_url="http://test") as client:
+    #async with AsyncClient(app=app, base_url="http://test") as client:
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
         r1 = await client.post(
             f"/games/{game.id}/votes",
             json={"game_id": game.id, "voter_id": p2.id, "target_id": p1.id},

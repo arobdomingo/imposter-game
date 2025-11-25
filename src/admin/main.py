@@ -10,9 +10,8 @@ from user_service.models.user import (
     get_user_repository,
 )
 
-# src/admin/main.py
 from fastapi import FastAPI
-
+from analytics.routes.analytics_routes import router as analytics_router
 from game_service.routes.clue_routes import router as clue_router
 from game_service.routes.vote_routes import router as vote_router
 from game_service.routes.chat_routes import router as chat_router
@@ -22,7 +21,7 @@ app = FastAPI(title="Imposter Admin API")
 app.include_router(clue_router)
 app.include_router(vote_router)
 app.include_router(chat_router)
-
+app.include_router(analytics_router)
 
 @app.get("/")
 async def root():
