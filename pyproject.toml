@@ -40,6 +40,7 @@ addopts = [
 markers = [
     "asyncio: mark a test as running with asyncio",
 ]
+asyncio_mode = "auto"
 
 [dependency-groups]
 dev = [

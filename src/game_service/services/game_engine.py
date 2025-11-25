@@ -17,7 +17,7 @@ from game_service.repositories import (
     get_clue_repository,
     get_vote_repository,
 )
-from game_service.services.word_service import WordService
+from game_service.services.word_service import WordService, get_word_service
 
 
 @dataclass
@@ -82,7 +82,7 @@ async def get_game_engine(
     player_repo: PlayerRepository = Depends(get_player_repository),
     clue_repo: ClueRepository = Depends(get_clue_repository),
     vote_repo: VoteRepository = Depends(get_vote_repository),
-    word_service: WordService = Depends(),
+    word_service: WordService = Depends(get_word_service),
 ) -> GameEngine:
     return GameEngine(
         lobby_repo=lobby_repo,

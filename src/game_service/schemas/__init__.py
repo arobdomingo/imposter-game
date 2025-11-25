@@ -1,6 +1,7 @@
 from .lobby import (  # noqa: F401
     LobbyCreateSchema,
     LobbyJoinSchema,
+    LobbyLeaveSchema,
     LobbyResponseSchema,
     LobbyPlayerSchema,
     LobbyStateSchema,

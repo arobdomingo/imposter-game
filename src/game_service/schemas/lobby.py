@@ -8,7 +8,10 @@ class LobbyCreateSchema(BaseModel):
 
 
 class LobbyJoinSchema(BaseModel):
-    code: str
+    user_id: int
+
+
+class LobbyLeaveSchema(BaseModel):
     user_id: int
 
 
