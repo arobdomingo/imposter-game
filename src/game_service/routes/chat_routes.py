@@ -4,7 +4,10 @@ from datetime import datetime
 from pydantic import BaseModel
 
 from game_service.repositories.game_repo import get_game_repository, GameRepository
-from game_service.repositories.player_repo import get_player_repository, PlayerRepository
+from game_service.repositories.player_repo import (
+    get_player_repository,
+    PlayerRepository,
+)
 
 router = APIRouter(prefix="/games", tags=["chat"])
 
@@ -40,7 +43,9 @@ async def post_chat(
     if not player or player.game_id != game_id:
         raise HTTPException(status_code=403, detail="Player not in game")
 
-    out = ChatOut(player_id=player.id, message=payload.message, sent_at=datetime.utcnow())
+    out = ChatOut(
+        player_id=player.id, message=payload.message, sent_at=datetime.utcnow()
+    )
     _IN_MEMORY_CHAT.setdefault(game_id, []).append(out)
     return out
 
@@ -48,4 +53,3 @@ async def post_chat(
 @router.get("/{game_id}/chat", response_model=List[ChatOut])
 async def get_chat(game_id: int):
     return _IN_MEMORY_CHAT.get(game_id, [])
-

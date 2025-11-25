@@ -4,7 +4,10 @@ from typing import Dict, List
 
 from fastapi import Depends
 
-from game_service.repositories.player_repo import get_player_repository, PlayerRepository
+from game_service.repositories.player_repo import (
+    get_player_repository,
+    PlayerRepository,
+)
 from game_service.repositories.vote_repo import get_vote_repository, VoteRepository
 from game_service.repositories.game_repo import get_game_repository, GameRepository
 
@@ -37,7 +40,7 @@ class ScoringService:
         players = self.player_repo.list_by_game(game_id)
         votes = self.vote_repo.list_by_game(game_id)
 
-        #player_map = {p.id: p for p in players}
+        player_map = {p.id: p for p in players}
         impostors = [p for p in players if p.is_imposter]
         impostor_ids = [p.id for p in impostors]
 
@@ -97,6 +100,6 @@ def get_scoring_service(
     vote_repo: VoteRepository = Depends(get_vote_repository),
     game_repo: GameRepository = Depends(get_game_repository),
 ) -> ScoringService:
-    return ScoringService(player_repo=player_repo, vote_repo=vote_repo, game_repo=game_repo)
-
-
+    return ScoringService(
+        player_repo=player_repo, vote_repo=vote_repo, game_repo=game_repo
+    )

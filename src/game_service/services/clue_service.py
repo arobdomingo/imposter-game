@@ -1,7 +1,6 @@
 from game_service.repositories.clue_repo import ClueRepository
 
 class ClueService:
-
     def __init__(self, session):
         self.repo = ClueRepository(session)
 
@@ -17,5 +16,5 @@ class ClueService:
             payload.player_id,
             payload.round_number,
             payload.clue_word,
-            payload.skipped
+            payload.skipped,
         )

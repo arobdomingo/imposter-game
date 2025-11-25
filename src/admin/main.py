@@ -9,6 +9,7 @@ from user_service.models.user import (
     UserResponseSchema,
     get_user_repository,
 )
+
 # src/admin/main.py
 from fastapi import FastAPI
 
@@ -26,6 +27,7 @@ app.include_router(chat_router)
 @app.get("/")
 async def root():
     return {"status": "ok", "service": "admin"}
+
 
 # Admin password protection
 ADMIN_PASSWORD = "admin123"

@@ -1,4 +1,4 @@
-'''import pytest
+"""import pytest
 from httpx import AsyncClient
 
 from src.admin.main import app
@@ -87,8 +87,8 @@ async def test_vote_submission_and_scoring(session, users):
     assert res_score.status_code == 200
     scoring = res_score.json()
 
-    assert scoring["player_scores"][str(p2.id)] == 1   
-    assert scoring["player_scores"][str(p1.id)] == 2   
+    assert scoring["player_scores"][str(p2.id)] == 1
+    assert scoring["player_scores"][str(p1.id)] == 2
     assert scoring["player_scores"][str(p3.id)] == 0
     assert scoring["player_scores"][str(p4.id)] == 0
 
@@ -97,5 +97,4 @@ async def test_vote_submission_and_scoring(session, users):
     updated_p2 = await player_repo.get_by_id(p2.id)
 
     assert updated_p1.score == 2
-    assert updated_p2.score == 1'''
-
+    assert updated_p2.score == 1"""

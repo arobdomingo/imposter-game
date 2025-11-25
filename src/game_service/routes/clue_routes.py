@@ -2,7 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from game_service.schemas.clue import ClueSubmitSchema, ClueResponseSchema
 from game_service.repositories.clue_repo import get_clue_repository, ClueRepository
-from game_service.repositories.player_repo import get_player_repository, PlayerRepository
+from game_service.repositories.player_repo import (
+    get_player_repository,
+    PlayerRepository,
+)
 from game_service.repositories.game_repo import get_game_repository, GameRepository
 
 router = APIRouter(prefix="/games", tags=["clues"])
@@ -16,13 +19,7 @@ async def submit_clue(
     player_repo: PlayerRepository = Depends(get_player_repository),
     game_repo: GameRepository = Depends(get_game_repository),
 ):
-    """
-    Enforces sequential clue submission (P1 -> P2 -> P3 -> P4).
-    Creates the clue row and returns current state:
-      - previous_clues: list of clues visible to the caller
-      - can_submit_next: whether the next player is now allowed
-      - move_to_voting: whether all players have submitted and the game should move to voting
-    """
+
     # validate game
     game = await game_repo.get_by_id(game_id)
     if not game:
@@ -40,18 +37,26 @@ async def submit_clue(
         for prev_seat in range(1, seat):
             prev_player = await player_repo.get_by_seat(game_id, prev_seat)
             if not prev_player:
-                raise HTTPException(status_code=400, detail=f"Previous seat {prev_seat} missing")
-            existing = await clue_repo.get_by_player_round(game_id, prev_player.id, payload.round_number)
+                raise HTTPException(
+                    status_code=400, detail=f"Previous seat {prev_seat} missing"
+                )
+            existing = await clue_repo.get_by_player_round(
+                game_id, prev_player.id, payload.round_number
+            )
             if not existing:
                 raise HTTPException(
                     status_code=409,
-                    detail=f"Cannot submit: player in seat {prev_seat} has not submitted yet"
+                    detail=f"Cannot submit: player in seat {prev_seat} has not submitted yet",
                 )
 
     # check for duplicate submission by same player for this round
-    existing = await clue_repo.get_by_player_round(game_id, payload.player_id, payload.round_number)
+    existing = await clue_repo.get_by_player_round(
+        game_id, payload.player_id, payload.round_number
+    )
     if existing:
-        raise HTTPException(status_code=409, detail="Clue already submitted for this round")
+        raise HTTPException(
+            status_code=409, detail="Clue already submitted for this round"
+        )
 
     # persist clue
     clue = await clue_repo.create(
@@ -92,7 +97,8 @@ async def submit_clue(
 
     # If all submitted, flip game status to "voting"
     if all_submitted:
-        await game_repo.update_status(game_id, "voting", current_round=game.current_round)
+        await game_repo.update_status(
+            game_id, "voting", current_round=game.current_round
+        )
 
     return response
-

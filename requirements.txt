@@ -11,3 +11,5 @@ pytest-cov>=7.0.0
 bcrypt
 ruff>=0.13.2
 Pillow
+python-jose[cryptography]
+
