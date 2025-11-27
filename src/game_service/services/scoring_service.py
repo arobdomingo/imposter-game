@@ -1,4 +1,3 @@
-
 from game_service.repositories.vote_repo import VoteRepository
 from game_service.repositories.player_repo import PlayerRepository
 from game_service.schemas.vote import ScoreResultSchema

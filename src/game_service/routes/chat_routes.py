@@ -23,7 +23,6 @@ class ChatOut(BaseModel):
     sent_at: datetime
 
 
-# simple in-memory per-game buffer for demo (persist to DB for production)
 _IN_MEMORY_CHAT: dict[int, List[ChatOut]] = {}
 
 
