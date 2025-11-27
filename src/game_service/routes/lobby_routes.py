@@ -7,8 +7,10 @@ from shared.database import get_db
 from game_service.repositories import (
     LobbyRepository,
     LobbyMemberRepository,
+    PlayerRepository,
     get_lobby_repository,
     get_lobby_member_repository,
+    get_player_repository,
 )
 from game_service.repositories import (
     GameRepository,
@@ -209,3 +211,137 @@ async def get_lobby_by_code(
         ),
         players=player_schemas,
     )
+
+@router.post("/{lobby_id}/start", status_code=200)
+async def start_game(
+    lobby_id: int,
+    request: dict,
+    lobby_repo: LobbyRepository = Depends(get_lobby_repository),
+    lobby_member_repo: LobbyMemberRepository = Depends(get_lobby_member_repository),
+    game_engine: GameEngine = Depends(get_game_engine),
+):
+    """
+    Start the game from a lobby.
+    Expected JSON body of Request:
+    {"host_id": <int>, "mode": "standard"}
+    """
+
+    host_id = request.get("host_id")
+    mode = request.get("mode", "standard")
+
+    # Validate lobby
+    lobby = await lobby_repo.get_by_id(lobby_id)
+    if not lobby:
+        raise HTTPException(404, "Lobby not found")
+
+    # Validate that host_id matches lobby.host_id
+    if lobby.host_id != host_id:
+        raise HTTPException(403, "Only the host can start the game")
+
+    # Get lobby members
+    members = await lobby_member_repo.list_members(lobby_id)
+    user_ids = [m.user_id for m in members]
+
+    if len(user_ids) < 3:
+        raise HTTPException(400, "At least 3 players required to start a game")
+
+    # Start the game
+    game_id = await game_engine.start_game(
+        lobby_id=lobby_id,
+        player_user_ids=user_ids,
+        mode=mode,
+    )
+
+    return {"game_id": game_id}
+
+# to be added to seperate files for organization purposes
+# future names provided above current names (e.g. current: "/{lobby_id}/game", incoming change to: "v2/games/{game_id}")
+
+# @router.get("v2/games/{game_id}", status_code=200)
+@router.get("/{lobby_id}/game", status_code=200)
+async def get_game_state(
+    lobby_id: int,
+    lobby_repo: LobbyRepository = Depends(get_lobby_repository),
+    game_repo: GameRepository = Depends(get_game_repository),
+    player_repo: PlayerRepository = Depends(get_player_repository),
+):
+    """Return the current game's state for the lobby (no spoilers)."""
+
+    lobby = await lobby_repo.get_by_id(lobby_id)
+    if not lobby:
+        raise HTTPException(404, "Lobby not found")
+
+    game = await game_repo.get_active_by_lobby(lobby_id)
+    if not game:
+        raise HTTPException(404, "No game started yet")
+
+    players = await player_repo.list_by_game(game.id)
+
+    return {
+        "game_id": game.id,
+        "mode": game.mode,
+        "players": [
+            {
+                "user_id": p.user_id,
+                "seat_no": p.seat_no,
+                # Do NOT expose impostor identity
+            }
+            for p in players
+        ],
+    }
+
+# @router.get("/v2/games/{game_id}/role", status_code=200)
+@router.get("/{game_id}/role")
+async def get_my_role(
+    game_id: int,
+    user_id: int,
+    player_repo: PlayerRepository = Depends(get_player_repository),
+):
+    """Return the current player's word and role for this game."""
+
+    player = await player_repo.get_by_user(game_id, user_id)
+    if not player:
+        raise HTTPException(404, "Player not found in this game")
+
+    return {
+        "user_id": user_id,
+        "is_imposter": player.is_imposter,
+        "word": player.word,
+    }
+
+# @router.get("/v2/games/{game_id}/end", status_code=200)
+@router.post("/{lobby_id}/game/end", status_code=200)
+async def end_game(
+    lobby_id: int,
+    request: dict,
+    lobby_repo: LobbyRepository = Depends(get_lobby_repository),
+    game_repo: GameRepository = Depends(get_game_repository),
+):
+    """
+    End the current active game for this lobby.
+    Expected JSON body:
+    {
+      "host_id": <int>
+    }
+    """
+
+    host_id = request.get("host_id")
+
+    # 1) Validate lobby exists
+    lobby = await lobby_repo.get_by_id(lobby_id)
+    if not lobby:
+        raise HTTPException(status_code=404, detail="Lobby not found")
+    
+    # 2) Check that caller is the host
+    if lobby.host_id != host_id:
+        raise HTTPException(status_code=403, detail="Only the host can end the game")
+
+    # 3) Find active game for this lobby
+    game = await game_repo.get_active_by_lobby(lobby_id)
+    if not game:
+        raise HTTPException(status_code=404, detail="No active game for this lobby")
+    
+    await game_repo.update_status(game.id, status="finished")
+    await lobby_repo.update_status(lobby_id, status="waiting")
+
+    return {"message": "Game finished", "game_id": game.id}

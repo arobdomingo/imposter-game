@@ -823,6 +823,21 @@ async def discord_callback(code: str, user_repo: UserRepository = Depends(get_us
 
     return {"jwt": token, "user": UserSchema.from_db_model(user)}
 
+async def get_current_user_jwt(authorization: Optional[str] = Header(None), user_repo: UserRepository = Depends(get_user_repository)) -> User:
+    """Authenticate user using a Bearer JWT instead of Basic auth."""
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required", headers={"WWW-Authenticate": "Bearer"})
+
+    token = authorization.split(" ", 1)[1]
+
+    user = await verify_jwt(token, user_repo)
+    if not user:
+        raise HTTPException( status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    return user
 
 with open(PRIVATE_KEY_PATH, "rb") as f:
     PRIVATE_KEY = f.read()

@@ -161,7 +161,6 @@ class UserRepository:
         except IntegrityError:
             self.session.rollback()
 
-
 def get_user_repository(db: Session = Depends(get_db)) -> UserRepository:
     return UserRepository(db)
 
