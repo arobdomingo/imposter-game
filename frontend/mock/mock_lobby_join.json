@@ -1,0 +1,8 @@
+{
+    "success": true,
+    "lobbyCode": "AB12CD",
+    "players": ["John", "Alice"],
+    "host": false,
+    "message": "Joined lobby successfully."
+  }
+  
