@@ -25,6 +25,10 @@ class VoteRepository:
         self.session.refresh(vote)
         return vote
 
+    async def create_vote(self, game_id: int, voter_id: int, target_id: Optional[int]):
+        # Alias required by test_vote_routes.py
+        return await self.create(game_id, voter_id, target_id)
+
     async def get_by_voter(self, game_id: int, voter_id: int) -> Optional[Vote]:
         stmt = select(Vote).where(Vote.game_id == game_id, Vote.voter_id == voter_id)
         return self.session.scalar(stmt)

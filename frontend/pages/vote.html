@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Choose Your Suspect | Imposter Game</title>
+  <link rel="stylesheet" href="../css/style.css?v=2.1">
+  <style>
+    body {
+      background: var(--bg-clever);
+      font-family: 'Poppins', sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .page-container {
+      max-width: 480px;
+      width: 95%;
+      padding: 32px 28px;
+      background: linear-gradient(135deg, var(--bg-clue), var(--bg-clever));
+      border: 2px solid var(--border-card);
+      border-radius: 16px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+      text-align: center;
+      animation: fadeIn 0.5s ease;
+    }
+
+    @keyframes fadeIn {
+      0% { opacity: 0; transform: translateY(20px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+
+    h1 {
+      font-size: 26px;
+      margin-bottom: 16px;
+      color: #333;
+    }
+
+    #playerTurn {
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: #555;
+    }
+
+    .clue-box button {
+      padding: 14px;
+      font-size: 16px;
+      border-radius: 10px;
+      border: none;
+      background-color: #4b7bec;
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+      margin: 6px 0;
+      width: 100%;
+      transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .clue-box button:hover {
+      transform: scale(1.03);
+      background-color: #3867d6;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+
+    .timer-orange { color: darkorange; font-weight: bold; }
+    .timer-red { color: red; font-weight: bold; animation: flash 1s infinite; }
+
+    @keyframes flash {
+      0%,100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    #voteStatus {
+      margin-top: 16px;
+      font-size: 16px;
+      font-weight: 500;
+      color: #555;
+      min-height: 24px;
+    }
+
+    #quirkyLine {
+      margin: 12px 0;
+      font-style: italic;
+      font-weight: 500;
+      color: #222;
+    }
+
+    h3 {
+      margin-top: 10px;
+      font-size: 18px;
+      color: #333;
+    }
+
+    #voteTimer {
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="page-container">
+    <h1>Choose Your Suspect 🔍</h1>
+
+    <p id="playerTurn"></p>
+
+    <div class="clue-box" id="suspectOptions"></div>
+
+    <p id="voteStatus"></p>
+
+    <!-- Quirky line about being smart -->
+    <p id="quirkyLine">🕵️‍♂️ Be smart, think carefully, and catch the imposter! 🧠</p>
+
+    <h3>Time Remaining: <span id="voteTimer" class="timer-orange">30</span>s</h3>
+  </div>
+
+  <script>
+    const players = ['John', 'Alice', 'Sara', 'Mike'];
+    let currentPlayerIndex = 0;
+    const voteDuration = 30;
+    let timerInterval;
+
+    const playerTurnEl = document.getElementById('playerTurn');
+    const suspectOptionsEl = document.getElementById('suspectOptions');
+    const voteTimerEl = document.getElementById('voteTimer');
+    const voteStatusEl = document.getElementById('voteStatus');
+
+    function startTurn() {
+      const currentPlayer = players[currentPlayerIndex];
+      playerTurnEl.textContent = `It's ${currentPlayer}'s turn to vote!`;
+
+      const options = players.filter(p => p !== currentPlayer);
+
+      suspectOptionsEl.innerHTML = '';
+      options.forEach(opt => {
+        const btn = document.createElement('button');
+        btn.textContent = opt;
+        btn.onclick = () => submitVote(currentPlayer, opt);
+        suspectOptionsEl.appendChild(btn);
+      });
+
+      startTimer(voteDuration);
+    }
+
+    function submitVote(player, suspect) {
+      voteStatusEl.textContent = `${player} voted for ${suspect}!`;
+      clearInterval(timerInterval);
+
+      currentPlayerIndex++;
+      if (currentPlayerIndex < players.length) {
+        setTimeout(() => {
+          voteStatusEl.textContent = '';
+          startTurn();
+        }, 1000);
+      } else {
+        voteStatusEl.textContent = 'All votes submitted! Redirecting...';
+        setTimeout(() => {
+          window.location.href = 'results.html';
+        }, 2000);
+      }
+    }
+
+    function startTimer(seconds) {
+      let timeLeft = seconds;
+      voteTimerEl.textContent = timeLeft;
+      voteTimerEl.className = 'timer-orange';
+      timerInterval = setInterval(() => {
+        timeLeft--;
+        voteTimerEl.textContent = timeLeft;
+
+        if (timeLeft <= 5) voteTimerEl.className = 'timer-red';
+        else voteTimerEl.className = 'timer-orange';
+
+        if (timeLeft <= 0) {
+          clearInterval(timerInterval);
+          voteStatusEl.textContent = `${players[currentPlayerIndex]} did not vote!`;
+          currentPlayerIndex++;
+          if (currentPlayerIndex < players.length) {
+            setTimeout(() => {
+              voteStatusEl.textContent = '';
+              startTurn();
+            }, 1000);
+          } else {
+            voteStatusEl.textContent = 'All votes done! Redirecting...';
+            setTimeout(() => {
+              window.location.href = 'results.html';
+            }, 2000);
+          }
+        }
+      }, 1000);
+    }
+
+    // Start first turn
+    startTurn();
+  </script>
+</body>
+</html>
