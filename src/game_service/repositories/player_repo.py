@@ -38,7 +38,7 @@ class PlayerRepository:
     async def list_by_game(self, game_id: int) -> list[Player]:
         stmt = select(Player).where(Player.game_id == game_id).order_by(Player.seat_no)
         return list(self.session.scalars(stmt).all())
-    
+
     async def list_players(self, game_id: int):
         return await self.list_by_game(game_id)
 
@@ -51,7 +51,7 @@ class PlayerRepository:
     async def get_by_id(self, player_id: int) -> Optional[Player]:
         stmt = select(Player).where(Player.id == player_id)
         return self.session.scalar(stmt)
-    
+
     async def get_player_by_id(self, player_id: int) -> Optional[Player]:
         return await self.get_by_id(player_id)
 

@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 
 class VoteRequestSchema(BaseModel):
-    #game_id: int
+    # game_id: int
     voter_id: int
     target_id: Optional[int] = None
 

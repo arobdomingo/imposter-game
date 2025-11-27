@@ -6,16 +6,18 @@ from game_service.repositories.vote_repo import VoteRepository
 from game_service.repositories.game_repo import GameRepository
 from game_service.repositories.player_repo import PlayerRepository
 from game_service.services.scoring_service import ScoringService
-from game_service.schemas.vote import VoteRequestSchema, VoteResultSchema, ScoreResultSchema
+from game_service.schemas.vote import (
+    VoteRequestSchema,
+    VoteResultSchema,
+    ScoreResultSchema,
+)
 
 router = APIRouter(prefix="/games/{game_id}/votes", tags=["votes"])
 
 
 @router.post("", response_model=VoteResultSchema)
 async def submit_vote(
-    game_id: int,
-    vote: VoteRequestSchema,
-    db: Session = Depends(get_db)
+    game_id: int, vote: VoteRequestSchema, db: Session = Depends(get_db)
 ):
     """
     Accept vote submission:
@@ -41,27 +43,22 @@ async def submit_vote(
         raise HTTPException(status_code=400, detail="Invalid target")
 
     new_vote = await vote_repo.create(
-    game_id=game_id,
-    voter_id=vote.voter_id,
-    target_id=vote.target_id,
-)
-
+        game_id=game_id,
+        voter_id=vote.voter_id,
+        target_id=vote.target_id,
+    )
 
     return VoteResultSchema(
-    id=new_vote.id,
-    game_id=new_vote.game_id,
-    voter_id=new_vote.voter_id,
-    target_id=new_vote.target_id,
-    created_at=new_vote.created_at,
-)
-
+        id=new_vote.id,
+        game_id=new_vote.game_id,
+        voter_id=new_vote.voter_id,
+        target_id=new_vote.target_id,
+        created_at=new_vote.created_at,
+    )
 
 
 @router.post("/score", response_model=ScoreResultSchema)
-async def compute_scores(
-    game_id: int,
-    db: Session = Depends(get_db)
-):
+async def compute_scores(game_id: int, db: Session = Depends(get_db)):
     """
     Compute the final scores after voting.
     """
@@ -69,5 +66,3 @@ async def compute_scores(
     score_service = ScoringService(db)
     result = await score_service.compute_scores(game_id)
     return result
-
-

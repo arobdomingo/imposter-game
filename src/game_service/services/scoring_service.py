@@ -34,4 +34,3 @@ class ScoringService:
             impostor_ids=impostor_ids,
             player_scores=score_map,
         )
-

@@ -5,6 +5,7 @@ from game_service.repositories.game_repo import GameRepository
 from game_service.repositories.player_repo import PlayerRepository
 from game_service.repositories.clue_repo import ClueRepository
 
+
 @pytest.mark.asyncio
 async def test_vote_and_scoring_flow(app_fixture, session, users, apply_db_override):
     lobby_repo = LobbyRepository(session)

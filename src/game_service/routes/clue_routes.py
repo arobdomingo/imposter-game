@@ -43,7 +43,6 @@ async def submit_clue(
                     detail=f"Cannot submit: player in seat {prev_seat} has not submitted yet",
                 )
 
-    
     existing = await clue_repo.get_by_player_round(
         game_id, payload.player_id, payload.round_number
     )
@@ -52,7 +51,6 @@ async def submit_clue(
             status_code=409, detail="Clue already submitted for this round"
         )
 
-    
     clue = await clue_repo.create(
         game_id=game_id,
         player_id=payload.player_id,
@@ -60,7 +58,6 @@ async def submit_clue(
         clue_word=payload.clue_word.strip(),
         skipped=payload.skipped,
     )
-
 
     previous = []
     players = await player_repo.list_by_game(game_id)
