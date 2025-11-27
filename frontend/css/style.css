@@ -242,3 +242,28 @@ button:disabled,
 .clue-word {
     color: #333;
 }
+
+/* ==============================
+   TIMER COLORS
+================================= */
+
+#roundTimer.timer-black {
+    color: black;
+  }
+  
+  #roundTimer.timer-orange {
+    color: darkorange;
+    font-weight: bold;
+  }
+  
+  #roundTimer.timer-red {
+    color: red;
+    font-weight: bold;
+    animation: flash 1s infinite;
+  }
+  
+  @keyframes flash {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+  

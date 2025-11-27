@@ -1,65 +1,210 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Lobby</title>
-    <link rel="stylesheet" href="../css/style.css">
-</head>
+  <meta charset="UTF-8">
+  <title>Lobby | Imposter Game</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    body {
+      background: var(--bg-clever);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      font-family: 'Poppins', sans-serif;
+    }
 
+    .page-container {
+      max-width: 500px;
+      width: 95%;
+      padding: 32px 28px;
+      background: linear-gradient(135deg, var(--bg-clue), var(--bg-clever));
+      border: 2px solid var(--border-card);
+      border-radius: 18px;
+      box-shadow: 0 10px 28px rgba(0,0,0,0.25);
+      text-align: center;
+      animation: fadeIn 0.5s ease;
+    }
+
+    @keyframes fadeIn {
+      0% { opacity: 0; transform: translateY(20px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+
+    h1 {
+      font-size: 28px;
+      margin-bottom: 16px;
+      color: #333;
+    }
+
+    h2 {
+      font-size: 22px;
+      margin: 20px 0 12px 0;
+      color: #555;
+    }
+
+    .lobby-code-section {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 16px 0;
+    }
+
+    #lobbyCodeBox {
+      background: #f4fbff;
+      padding: 12px 20px;
+      border-radius: 12px;
+      font-family: monospace;
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      user-select: all;
+      animation: glow 2s infinite;
+      margin-right: 12px;
+    }
+
+    @keyframes glow {
+      0%, 100% { box-shadow: 0 0 6px rgba(0, 123, 255, 0.4); }
+      50% { box-shadow: 0 0 14px rgba(0, 123, 255, 0.7); }
+    }
+
+    .small-btn {
+      font-size: 14px;
+      padding: 8px 14px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      background: #000;
+      color: #fff;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .small-btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+
+    .btn {
+      display: inline-block;
+      width: 100%;
+      padding: 16px;
+      border-radius: 10px;
+      border: none;
+      background: #28a745; /* Green button */
+      color: #fff;
+      font-weight: 600;
+      font-size: 18px;
+      margin-top: 20px;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .btn:hover:not(:disabled) {
+      transform: scale(1.03);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+
+    .btn:disabled {
+      background: var(--btn-disabled-bg);
+      color: var(--btn-disabled-text);
+      cursor: not-allowed;
+    }
+
+    #playerList {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    #playerList li {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      margin: 6px 0;
+      border-radius: 12px;
+      background: #f4fbff;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+      font-weight: 600;
+      transition: transform 0.2s ease, background 0.2s ease;
+    }
+
+    #playerList li:hover {
+      transform: scale(1.02);
+      background: #e0f0ff;
+    }
+
+    #statusMsg {
+      margin-top: 12px;
+      font-size: 16px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+  </style>
+</head>
 <body>
   <div class="page-container lobby-container">
-    <h1>Waiting Room: Assemble Your Crew!</h1>
+    <h1>Waiting Room: Assemble Your Crew! 🕵️‍♂️</h1>
 
     <div class="lobby-code-section">
-        <span>LOBBY CODE: <strong id="lobbyCode">AB12CD</strong></span>
-        <button id="copyCodeBtn" class="btn small-btn">Copy</button>
+      <div id="lobbyCodeBox">AB12CD</div>
+      <button id="copyCodeBtn" class="small-btn">Copy</button>
     </div>
 
-    <h2>Suspects in the Room</h2>
-    <ul id="playerList" class="player-list">
-        <li>John</li>
-        <li>Alice</li>
-        <li>Mike</li>
-        <li>Sara</li>
-    </ul>
+    <h2>Suspects in the Room 🧑‍🤝‍🧑</h2>
+    <ul id="playerList" class="player-list"></ul>
 
-    <p id="statusMsg">Ready to start the game!</p>
+    <p id="statusMsg">Waiting for players...</p>
 
-    <button id="startGameBtn" class="btn" disabled>Start Game</button>
+    <button id="startGameBtn" class="btn" disabled>Start Game 🔥</button>
   </div>
 
   <script>
+    const copyBtn = document.getElementById('copyCodeBtn');
+    const lobbyCodeBox = document.getElementById('lobbyCodeBox');
+    const playerListEl = document.getElementById('playerList');
+    const statusMsg = document.getElementById('statusMsg');
     const startBtn = document.getElementById('startGameBtn');
-    const playerList = document.getElementById('playerList');
-    
-    function updateStartButton() {
-        const playerCount = playerList.children.length;
-        if (playerCount >= 4) {
-            startBtn.disabled = false;
-            startBtn.style.backgroundColor = "#28a745"; // green
-        } else {
-            startBtn.disabled = true;
-            startBtn.style.backgroundColor = "#777"; // grey
-        }
+
+    // Copy lobby code to clipboard
+    copyBtn.addEventListener('click', () => {
+      navigator.clipboard.writeText(lobbyCodeBox.textContent)
+        .then(() => {
+          copyBtn.textContent = 'Copied! ✅';
+          setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
+        })
+        .catch(err => console.error('Failed to copy:', err));
+    });
+
+    // Populate player list
+    const players = ['John', 'Alice', 'Sara', 'Mike'];
+    players.forEach(p => {
+      const li = document.createElement('li');
+      li.textContent = p;
+      playerListEl.appendChild(li);
+    });
+
+    // Update start button and status message
+    if (players.length >= 4) { // Keep original logic
+      startBtn.disabled = false;
+      statusMsg.textContent = ''; // Hide waiting message
+    } else {
+      startBtn.disabled = true;
+      statusMsg.textContent = 'Waiting for players...';
     }
-    
-    // Initial check
-    updateStartButton();
-    
-    // Copy Lobby Code functionality
-    document.getElementById('copyCodeBtn').addEventListener('click', () => {
-        const code = document.getElementById('lobbyCode').innerText;
-        navigator.clipboard.writeText(code).then(() => {
-            alert("Lobby code copied!");
-        });
-    });
-    
-    // Start Game functionality
+
+    // Redirect to game.html when start button clicked
     startBtn.addEventListener('click', () => {
-        if (!startBtn.disabled) {
-            // Redirect to clue page
-            window.location.href = "game.html";
-        }
+      statusMsg.textContent = 'Starting game... 🔥';
+      setTimeout(() => {
+        window.location.href = "game.html";
+      }, 400);
     });
-    </script>    
+  </script>
+
+  <script src="../js/lobby.js"></script>
 </body>
 </html>

@@ -1,27 +1,147 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Imposter Game</title>
-    <link rel="stylesheet" href="../css/style.css">
+  <meta charset="UTF-8" />
+  <title>Home | Imposter Game</title>
+  <link rel="stylesheet" href="../shared/reset.css" />
+  <link rel="stylesheet" href="../shared/tokens.css" />
+  <link rel="stylesheet" href="styles.css" />
+  <script defer src="../js/app.js"></script>
+
+  <!-- Page-specific home styles -->
+  <style>
+    body {
+      background: var(--bg-clever);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      font-family: 'Poppins', sans-serif;
+    }
+
+    .card {
+      max-width: 500px;
+      width: 100%;
+      padding: 36px 32px;
+      background: var(--bg-clue);
+      border: 2px solid var(--border-card);
+      border-radius: 18px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+      text-align: center;
+      animation: fadeIn 0.5s ease;
+    }
+
+    @keyframes fadeIn {
+      0% { opacity: 0; transform: translateY(20px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+
+    .title { 
+      margin-bottom: 12px; 
+      font-size: 30px; 
+    }
+
+    .subtitle { 
+      margin-bottom: 28px; 
+      font-size: 16px; 
+    }
+
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 18px;
+      margin-top: 16px;
+      border-radius: 12px;
+      border: none;
+      background: #000;
+      color: #fff;
+      font-weight: 600;
+      font-size: 18px;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      cursor: pointer;
+    }
+
+    .btn:hover { 
+      transform: scale(1.05); 
+      box-shadow: 0 5px 14px rgba(0,0,0,0.25);
+    }
+
+    .btn-secondary {
+      background: #4b7bec;
+    }
+
+    .btn-secondary:hover {
+      background: #3a5fc0;
+    }
+
+    .emoji { font-size: 24px; margin-left: 6px; }
+
+    .notice {
+      margin-top: 24px;
+      padding: 16px;
+      border-radius: 12px;
+      background: #eee;
+      border: 2px solid #ccc;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      font-weight: 600;
+      display: none;
+    }
+
+    .lobby-code {
+      width: 100%;
+      padding: 14px;
+      margin-top: 12px;
+      border: 1px solid var(--border-card);
+      border-radius: 10px;
+      font-size: 16px;
+    }
+  </style>
 </head>
-
 <body>
-  <div class="page-container">
+  <main class="card">
+    <h1 class="title">🎲 Game On, Detectives!</h1>
+    <p class="subtitle" id="quirkyPhrase">Ready to cause some chaos?🕵️‍♂️</p>
 
-    <h1>IMPOSTER GAME</h1>
-    <p class="subtitle">Guess the odd one out. Fool your friends!</p>
+    <button class="btn" onclick="startLobby()">Create Lobby 🎮</button>
 
-    <button id="createLobbyBtn" class="btn">Create Lobby</button>
+    <button class="btn btn-secondary" onclick="joinLobby()">Join Lobby 🏃‍♂️</button>
+    <input type="text" id="lobbyCode" class="lobby-code" placeholder="Enter lobby code" />
 
-    <div class="divider">OR</div>
+    <div class="notice" id="notice"></div>
+  </main>
 
-    <div class="join-section">
-      <button id="joinLobbyBtn" class="btn">Join Lobby</button>
-      <input id="joinCodeInput" type="text" placeholder="Enter Lobby Code">
-    </div>
+  <script>
+    const quirkyPhrases = [
+      "Who will be sneaky today? 🤫",
+      "Trust no one… except maybe this game! 🎭",
+      "Spot the sneaky sneaks! 🔍",
+      "Ready for a round of chaos? ⚡",
+      "Warning: sudden suspicion may occur 😏"
+    ];
+    document.getElementById('quirkyPhrase').textContent = quirkyPhrases[Math.floor(Math.random() * quirkyPhrases.length)];
 
-  </div>
+    const noticeEl = document.getElementById('notice');
 
-  <script src="../js/home.js"></script>
+    function startLobby() {
+      noticeEl.textContent = "Creating lobby...";
+      noticeEl.style.display = 'block';
+      setTimeout(() => {
+        window.location.href = "lobby.html";
+      }, 600);
+    }
+
+    function joinLobby() {
+      const code = document.getElementById('lobbyCode').value.trim();
+      if (!code) {
+        alert("Please enter a lobby code to join!");
+        return;
+      }
+      noticeEl.textContent = "Joining lobby...";
+      noticeEl.style.display = 'block';
+      setTimeout(() => {
+        window.location.href = "lobby.html";
+      }, 600);
+    }
+  </script>
 </body>
 </html>

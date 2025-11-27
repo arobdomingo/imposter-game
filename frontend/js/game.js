@@ -75,24 +75,21 @@ function renderPreviousClues() {
 let timeLeft = 30;
 let timer = null;
 
-function updateTimerDisplay(seconds) {
-    // Remove previous classes
+function updateColor() {
     timerEl.classList.remove("timer-black", "timer-orange", "timer-red");
 
-    // 30–11: black, 10–6: dark orange, 5–0: red + blink
-    if (seconds > 10) {
-        timerEl.classList.add("timer-black");
-    } else if (seconds > 5) {
+    if (timeLeft <= 5) {
+        timerEl.classList.add("timer-red");
+    } else if (timeLeft <= 10) {
         timerEl.classList.add("timer-orange");
     } else {
-        timerEl.classList.add("timer-red");
+        timerEl.classList.add("timer-black");
     }
-
-    timerEl.textContent = seconds;
 }
 
 function tick() {
-    updateTimerDisplay(timeLeft);
+    timerEl.textContent = timeLeft;
+    updateColor();
     timeLeft--;
 
     if (timeLeft < 0) {
@@ -103,11 +100,13 @@ function tick() {
 
 function startTimer() {
     if (timer) clearInterval(timer);
-    updateTimerDisplay(timeLeft);
+    timerEl.textContent = timeLeft;
+    updateColor();
     timer = setInterval(tick, 1000);
 }
 
-// ---------------------------------------
+
+// ---------------- CLUE SUBMISSION ----------------
 
 submitBtn.addEventListener("click", () => {
     const clue = clueInput.value.trim();

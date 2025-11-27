@@ -4,7 +4,7 @@
     <title>Game Round</title>
 
     <!-- CACHE-BUSTER -->
-    <link rel="stylesheet" href="../css/style.css?v=2.1">
+    <link rel="stylesheet" href="../css/style.css?v=2.3">
 
     <style>
         body {
@@ -62,12 +62,6 @@
             font-weight: 500;
         }
 
-        /* Allow JS timer classes to work */
-        #roundTimer {
-            font-size: 26px;
-            font-weight: 800;
-            color: inherit;
-        }
 
         .previous-clues {
             margin-top: 20px;
@@ -135,18 +129,6 @@
             font-weight: 600;
             font-size: 16px;
             min-height: 24px;
-        }
-
-        /* ==========================
-           TIMER COLORS
-        ========================== */
-        .timer-black { color: black; }
-        .timer-orange { color: darkorange; font-weight: bold; }
-        .timer-red { color: red; font-weight: bold; animation: flash 1s infinite; }
-
-        @keyframes flash {
-            0%,100% { opacity: 1; }
-            50% { opacity: .3; }
         }
     </style>
 </head>
