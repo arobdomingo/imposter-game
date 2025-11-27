@@ -7,6 +7,9 @@ import user_service.models.friendship  # noqa: F401
 import event_service.models.event  # noqa: F401
 import game_service.models  # noqa: F401
 
+from admin.main import app
+from shared.database import get_db
+
 
 @pytest.fixture(scope="function")
 def engine():
@@ -41,3 +44,24 @@ def users(session):
     session.add_all(user_objs)
     session.commit()
     return user_objs
+
+
+@pytest.fixture(scope="session")
+def app_fixture():
+    """Provide the FastAPI app instance for HTTP route testing."""
+    return app
+
+
+@pytest.fixture(scope="function")
+def apply_db_override(app_fixture, session):
+    """
+    Override FastAPI get_db dependency so route handlers
+    use the SAME in-memory database session used by repo tests.
+    """
+
+    def override_get_db():
+        yield session
+
+    app_fixture.dependency_overrides[get_db] = override_get_db
+    yield
+    app_fixture.dependency_overrides.clear()

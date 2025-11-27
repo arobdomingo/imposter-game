@@ -5,7 +5,6 @@ from typing import Optional
 from fastapi import Depends
 from sqlalchemy import select, update, delete
 from sqlalchemy.orm import Session
-
 from shared.database import get_db
 from game_service.models.player import Player
 
@@ -40,6 +39,9 @@ class PlayerRepository:
         stmt = select(Player).where(Player.game_id == game_id).order_by(Player.seat_no)
         return list(self.session.scalars(stmt).all())
 
+    async def list_players(self, game_id: int):
+        return await self.list_by_game(game_id)
+
     async def get_by_user(self, game_id: int, user_id: int) -> Optional[Player]:
         stmt = select(Player).where(
             Player.game_id == game_id, Player.user_id == user_id
@@ -49,6 +51,9 @@ class PlayerRepository:
     async def get_by_id(self, player_id: int) -> Optional[Player]:
         stmt = select(Player).where(Player.id == player_id)
         return self.session.scalar(stmt)
+
+    async def get_player_by_id(self, player_id: int) -> Optional[Player]:
+        return await self.get_by_id(player_id)
 
     async def update_score(self, player_id: int, score_delta: int) -> None:
         stmt = (
