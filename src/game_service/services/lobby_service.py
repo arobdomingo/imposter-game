@@ -139,6 +139,6 @@ class LobbyService:
             member.user_id for member in sorted(members, key=lambda m: m.seat_no or 0)
         ]
 
-        # Start the game (mode can be configurable, defaulting to "unaware")
-        game_id = await self.game_engine.start_game(lobby_id, user_ids, mode="unaware")
+        # Start the game (mode can be configurable, defaulting to "aware")
+        game_id = await self.game_engine.start_game(lobby_id, user_ids, mode="aware")
         return game_id

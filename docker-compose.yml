@@ -13,9 +13,11 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data # Persists data to a named volume
+      - postgres_data:/var/lib/postgresql #(/data removed) Persists data to a named volume
   web:
     build: .
+    entrypoint: ["bash", "scripts/docker-entrypoint.sh"]
+    command: ["uvicorn", "user_service.api:app", "--host", "0.0.0.0", "--port", "8000"] # for automatic migration
     depends_on:
       db:
         condition: service_healthy
@@ -26,6 +28,9 @@ services:
       POSTGRES_HOST: db # The service name of your Postgres container
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID}
+      DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET}
+      DISCORD_REDIRECT_URI: ${DISCORD_REDIRECT_URI}
       AUTH_TTL_SECONDS: 3600
       TESTING: "1"
     develop:

@@ -9,7 +9,6 @@ from game_service.repositories import (
 )
 from game_service.services import WordService, WordPair, GameEngine, GameEngineConfig
 
-
 def test_word_service_modes():
     service = WordService([WordPair("common", "impostor")])
     common, impostor = service.get_words(mode="aware")
@@ -61,6 +60,50 @@ async def test_game_engine_start_game(session, users):
     impostor = [p for p in players if p.is_imposter][0]
     assert impostor.user_id == users[1].id
     assert impostor.word == "impostor word"
+
+    crew_words = {p.word for p in players if not p.is_imposter}
+    assert crew_words == {"common"}
+
+@pytest.mark.asyncio
+async def test_game_engine_start_game_aware_mode(session, users):
+    lobby_repo = LobbyRepository(session)
+    game_repo = GameRepository(session)
+    player_repo = PlayerRepository(session)
+    clue_repo = ClueRepository(session)
+    vote_repo = VoteRepository(session)
+
+    lobby = await lobby_repo.create("ROOMA", host_id=users[0].id)
+
+    class DeterministicEngine(GameEngine):
+        async def _choose_impostor_index(self, player_user_ids):
+            # Always pick the second player as impostor
+            return 1
+
+    engine = DeterministicEngine(
+        lobby_repo=lobby_repo,
+        game_repo=game_repo,
+        player_repo=player_repo,
+        clue_repo=clue_repo,
+        vote_repo=vote_repo,
+        word_service=WordService([WordPair("common", "impostor word")]),
+        config=GameEngineConfig(max_players=4, total_rounds=3),
+    )
+
+    player_ids = [u.id for u in users[:3]]
+    game_id = await engine.start_game(lobby.id, player_ids, mode="aware")
+
+    game = await game_repo.get_by_id(game_id)
+    assert game is not None
+    assert game.lobby_id == lobby.id
+    assert game.mode == "aware"
+
+    players = await player_repo.list_by_game(game_id)
+    assert len(players) == 3
+
+    impostor = [p for p in players if p.is_imposter][0]
+    assert impostor.user_id == users[1].id
+    # In aware mode, we don't use a separate impostor word
+    assert impostor.word is None
 
     crew_words = {p.word for p in players if not p.is_imposter}
     assert crew_words == {"common"}

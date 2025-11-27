@@ -3,9 +3,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 
 from user_service.models.user import Base, User
-import user_service.models.friendship  # noqa: F401
-import event_service.models.event  # noqa: F401
-import game_service.models  # noqa: F401
+# import user_service.models.friendship  # noqa: F401
+# import event_service.models.event  # noqa: F401
+# import game_service.models  # noqa: F401
 
 
 @pytest.fixture(scope="function")
