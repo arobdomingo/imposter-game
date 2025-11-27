@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Login | Imposter Game</title>
+  <link rel="stylesheet" href="../shared/reset.css" />
+  <link rel="stylesheet" href="../shared/tokens.css" />
+  <link rel="stylesheet" href="styles.css" />
+  <script defer src="../js/app.js"></script>
+
+  <!-- Page-specific login styles -->
+  <style>
+    body {
+      background: var(--bg-clever);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      font-family: 'Poppins', sans-serif;
+    }
+
+    .card {
+      max-width: 480px;
+      width: 100%;
+      padding: 32px;
+      background: linear-gradient(135deg, var(--bg-clue), var(--bg-clever));
+      border: 2px solid var(--border-card);
+      border-radius: 16px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+      text-align: center;
+      animation: fadeIn 0.5s ease;
+    }
+
+    @keyframes fadeIn {
+      0% { opacity: 0; transform: translateY(20px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+
+    .title { 
+      margin-bottom: 12px; 
+      font-size: 28px; 
+    }
+    .subtitle { 
+      margin-bottom: 28px; 
+      font-size: 16px; 
+      color: var(--text-muted); 
+    }
+
+    .field input {
+      width: 100%;
+      padding: 16px;
+      margin-bottom: 20px;
+      border: 1px solid var(--border-card);
+      border-radius: 10px;
+      font-size: 18px;
+      transition: outline 0.2s, background 0.2s;
+    }
+
+    .field input:focus {
+      outline: 2px solid var(--accent-green);
+      background: #fff;
+    }
+
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 16px;
+      margin-top: 12px;
+      border-radius: 10px;
+      border: none;
+      background: #000;
+      color: #fff;
+      font-weight: 600;
+      font-size: 18px;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      cursor: pointer;
+    }
+
+    .btn:hover { 
+      transform: scale(1.03); 
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+
+    .btn:disabled { 
+      background: var(--btn-disabled-bg); 
+      color: var(--btn-disabled-text); 
+      cursor: not-allowed;
+    }
+
+    .btn-discord { 
+      background: #5865F2; 
+      font-size: 18px;          
+      padding: 16px;          
+    }
+
+    .btn-discord:hover { 
+      background: #4752C4; 
+    }
+
+    .divider {
+      margin: 28px 0;
+      position: relative;
+      text-align: center;
+    }
+    .divider span {
+      background: #fff;
+      padding: 0 14px;
+      color: var(--text-muted);
+      font-size: 16px;
+    }
+    .divider::before {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: #ddd;
+      transform: translateY(-50%);
+      z-index: -1;
+    }
+  </style>  
+</head>
+<body>
+  <main class="card">
+    <h1 class="title">👋 Welcome to Imposter Game</h1>
+    <p class="subtitle">Log in to join the lobby and start a round — <span id="quirkyPhrase">🤫</span></p>
+
+    <form class="form" id="loginForm">
+      <label class="field">
+        <span>Email</span>
+        <input type="email" id="email" placeholder="you@example.com" required />
+      </label>
+      <label class="field">
+        <span>Password</span>
+        <input type="password" id="password" placeholder="••••••••" required />
+      </label>
+      <button type="submit" class="btn btn-primary" id="loginBtn" disabled>Login</button>
+    </form>
+
+    <div class="divider"><span>or</span></div>
+
+    <button type="button" class="btn btn-discord" onclick="discordLogin()">
+      <span>Login with Discord</span>
+    </button>
+  </main>
+
+  <script>
+    // Dynamic quirky phrases
+    const phrases = [
+      "Who Will Fool You Today? 🤫",
+      "Trust No One… Except This Game! 🎭",
+      "Can You Spot the Sneaky Sneak? 🕵️‍♂️",
+      "Ready to Catch the Imposter? 🔍",
+      "Warning: May Cause Sudden Suspicion! 😏"
+    ];
+    const quirkyEl = document.getElementById('quirkyPhrase');
+    quirkyEl.textContent = phrases[Math.floor(Math.random() * phrases.length)];
+
+    const emailEl = document.getElementById('email');
+    const passEl = document.getElementById('password');
+    const loginBtn = document.getElementById('loginBtn');
+    const form = document.getElementById('loginForm');
+
+    function validate() {
+      loginBtn.disabled = !(emailEl.value && passEl.value);
+    }
+    emailEl.addEventListener('input', validate);
+    passEl.addEventListener('input', validate);
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      
+      // Stub: token creation
+      Auth.set('fake_token_' + Date.now());
+      loginBtn.textContent = 'Logged in';
+      loginBtn.disabled = true;
+
+      // Redirect to home page
+      window.location.href = "home.html";
+    });
+
+    function discordLogin() {
+      // Add your Discord login logic here
+      alert("Discord login clicked!");
+    }
+  </script>
+</body>
+</html>
