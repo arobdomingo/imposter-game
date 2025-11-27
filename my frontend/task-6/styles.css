@@ -1,0 +1,42 @@
+body {
+    background: var(--bg-clever);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+  }
+  
+  .card {
+    max-width: 600px;
+    width: 100%;
+    padding: 32px;
+    background: var(--bg-clue);
+    border: 2px solid var(--border-card);
+    border-radius: 16px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+  }
+  
+  .header { display: flex; justify-content: space-between; margin-bottom: 20px; }
+  .timer { background: #fff; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border-card); }
+  
+  input {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 16px;
+    border: 1px solid var(--border-card);
+    border-radius: 8px;
+  }
+  
+  .actions { display: flex; gap: 12px; }
+  .btn {
+    flex: 1;
+    padding: 12px;
+    border-radius: 8px;
+    background: #000;
+    color: #fff;
+    font-weight: 600;
+    transition: transform 0.2s ease;
+  }
+  .btn:hover { transform: scale(1.03); }
+  .btn:disabled { background: var(--btn-disabled-bg); color: var(--btn-disabled-text); }
+  

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Login | Imposter Game</title>
+  <link rel="stylesheet" href="../shared/reset.css" />
+  <link rel="stylesheet" href="../shared/tokens.css" />
+  <link rel="stylesheet" href="styles.css" />
+  <script defer src="../shared/app.js"></script>
+</head>
+<body>
+  <main class="card">
+    <h1 class="title">Welcome to Imposter Game</h1>
+    <p class="subtitle">Log in to join the lobby and start a round.</p>
+
+    <form class="form" id="loginForm">
+      <label class="field">
+        <span>Email</span>
+        <input type="email" id="email" placeholder="you@example.com" required />
+      </label>
+      <label class="field">
+        <span>Password</span>
+        <input type="password" id="password" placeholder="••••••••" required />
+      </label>
+      <button type="submit" class="btn btn-primary" id="loginBtn" disabled>Login</button>
+    </form>
+
+    <div class="divider"><span>or</span></div>
+
+    <button type="button" class="btn btn-discord" onclick="discordLogin()">
+      <span>Login with Discord</span>
+    </button>
+
+  </main>
+
+  <script>
+    const emailEl = document.getElementById('email');
+    const passEl = document.getElementById('password');
+    const loginBtn = document.getElementById('loginBtn');
+    const form = document.getElementById('loginForm');
+
+    function validate() {
+      loginBtn.disabled = !(emailEl.value && passEl.value);
+    }
+    emailEl.addEventListener('input', validate);
+    passEl.addEventListener('input', validate);
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      // Stub: token creation
+      Auth.set('fake_token_' + Date.now());
+      loginBtn.textContent = 'Logged in';
+      loginBtn.disabled = true;
+    });
+  </script>
+</body>
+</html>

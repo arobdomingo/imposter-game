@@ -1,0 +1,39 @@
+body {
+    background: var(--bg-clever);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+  }
+  
+  .card {
+    max-width: 700px;
+    width: 100%;
+    padding: 32px;
+    background: var(--bg-clue);
+    border: 2px solid var(--border-card);
+    border-radius: 16px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+  }
+  
+  .header { display: flex; justify-content: space-between; margin-bottom: 20px; }
+  .timer { background: #fff; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border-card); }
+  
+  .list { list-style: none; padding: 0; margin: 0; }
+  .item {
+    display: flex; justify-content: space-between;
+    padding: 12px;
+    margin-bottom: 10px;
+    border: 1px solid var(--border-card);
+    border-radius: 8px;
+    background: #fff;
+  }
+  .item.imposter { background: var(--btn-disabled-bg); color: var(--btn-disabled-text); }
+  .badge {
+    background: var(--btn-disabled-bg);
+    color: var(--btn-disabled-text);
+    padding: 4px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+  }
+  
