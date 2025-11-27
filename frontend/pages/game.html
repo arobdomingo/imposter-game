@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Game Round</title>
+
+    <!-- CACHE-BUSTER -->
+    <link rel="stylesheet" href="../css/style.css?v=2.3">
+
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #eef2f3, #e8faff);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .page-container {
+            background: #ffffff;
+            border-radius: 22px;
+            padding: 32px 40px;
+            box-shadow: 0 14px 28px rgba(0,0,0,0.18);
+            text-align: center;
+            max-width: 500px;
+            width: 90%;
+            animation: fadeIn 0.4s ease;
+        }
+
+        @keyframes fadeIn {
+            0% { opacity: 0; transform: translateY(20px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        #roleText {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        #assignedWord {
+            font-size: 36px;
+            font-weight: 700;
+            color: #222;
+            padding: 10px 20px;
+            background: #fff6d3;
+            border: 2px solid #ffe08a;
+            border-radius: 12px;
+            display: inline-block;
+            letter-spacing: 1.5px;
+            margin-bottom: 10px;
+            box-shadow: 0 4px 10px rgba(255,200,0,0.25);
+            text-transform: uppercase;
+        }
+
+        .subtitle-small {
+            font-size: 14px;
+            margin-bottom: 20px;
+            color: #666;
+            font-weight: 500;
+        }
+
+
+        .previous-clues {
+            margin-top: 20px;
+            padding: 10px;
+            background: #f4fbff;
+            border-radius: 12px;
+            border: 1px solid #cfeffc;
+            height: 80px;
+            overflow-y: auto;
+            font-size: 14px;
+        }
+        .previous-clues p {
+            margin: 4px 0;
+            font-weight: 600;
+        }
+
+        .clue-box {
+            margin-top: 22px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        #clueInput {
+            padding: 14px;
+            font-size: 17px;
+            border-radius: 10px;
+            border: 2px solid #dde7ef;
+            text-align: center;
+            transition: 0.2s ease;
+        }
+
+        #clueInput:focus {
+            border-color: #4b7bec;
+            outline: none;
+        }
+
+        #submitClueBtn {
+            padding: 14px;
+            font-size: 18px;
+            border-radius: 10px;
+            border: none;
+            background-color: #4b7bec;
+            color: #fff;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.2s ease, background 0.2s ease;
+            box-shadow: 0 6px 16px rgba(75,123,236,0.3);
+        }
+
+        #submitClueBtn:hover:not(:disabled) {
+            transform: scale(1.05);
+            background-color: #3867d6;
+        }
+
+        #submitClueBtn:disabled {
+            background-color: #bbb;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        #clueStatus {
+            margin-top: 16px;
+            font-weight: 600;
+            font-size: 16px;
+            min-height: 24px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="page-container">
+        <h1>Game Round</h1>
+
+        <p id="roleText"></p>
+
+        <span id="assignedWord">???</span>
+        <div class="subtitle-small">Your secret word!</div>
+
+        <h3>Time Remaining: <span id="roundTimer">30</span>s</h3>
+
+        <div class="previous-clues" id="previousClues"></div>
+
+        <div class="clue-box">
+            <input id="clueInput" type="text" placeholder="Enter one-word clue" maxlength="20">
+            <button id="submitClueBtn">Submit Clue</button>
+        </div>
+
+        <p id="clueStatus"></p>
+    </div>
+
+    <script src="../js/game.js?v=2.1" defer></script>
+</body>
+</html>
