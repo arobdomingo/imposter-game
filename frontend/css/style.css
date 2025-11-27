@@ -1,0 +1,244 @@
+/* ==============================
+   GLOBAL & BODY
+================================= */
+
+:root {
+    --bg-clever: #f2f2f4;
+    --bg-clue: #ffffff;
+    --border-card: #d0d0d0;
+    --btn-disabled-bg: #e0e0e0;
+    --btn-disabled-text: #777;
+}
+
+body {
+    background: var(--bg-clever);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-family: Arial, 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif;
+    margin: 0;
+}
+
+/* ==============================
+   MAIN CARD CONTAINER
+================================= */
+
+.page-container {
+    max-width: 600px;
+    width: 100%;
+    padding: 32px;
+    background: var(--bg-clue);
+    border: 2px solid var(--border-card);
+    border-radius: 16px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+    text-align: center;
+}
+
+/* Lobby specific container */
+.lobby-container {
+    padding: 24px 32px;
+}
+
+/* ==============================
+   HEADINGS
+================================= */
+
+h1 {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 12px;
+}
+
+h2 {
+    font-size: 22px;
+    margin-bottom: 14px;
+}
+
+/* ==============================
+   LOBBY CODE
+================================= */
+
+.lobby-code-section {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.code-text {
+    font-weight: bold;
+    font-size: 18px;
+    background: #e8faff;
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 1px solid #b7e7f2;
+}
+
+/* ==============================
+   BUTTONS & INPUT
+================================= */
+
+button,
+.btn {
+    width: 100%;
+    padding: 12px;
+    border-radius: 8px;
+    background: #000;
+    color: #fff;
+    font-weight: 600;
+    border: none;
+    transition: transform 0.2s ease, background-color 0.3s ease, box-shadow 0.3s ease;
+    margin-top: 10px;
+}
+
+button:hover:not(:disabled),
+.btn:hover:not(:disabled) {
+    transform: scale(1.03);
+    box-shadow: 0 0 15px rgba(0,0,0,0.3);
+}
+
+button:disabled,
+.btn:disabled {
+    background: var(--btn-disabled-bg);
+    color: var(--btn-disabled-text);
+}
+
+.small-btn {
+    width: auto;
+    padding: 6px 12px;
+    font-size: 14px;
+}
+
+/* Join Lobby vertical layout */
+.join-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+}
+
+.join-section button {
+    width: 100%;
+    padding: 12px;
+    border-radius: 8px;
+    border: none;
+    background-color: #000;
+    color: #fff;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.join-section button:hover:not(:disabled) {
+    transform: scale(1.03);
+    box-shadow: 0 0 15px rgba(0,0,0,0.3);
+}
+
+.join-section input {
+    width: 100%;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #b7b7b7;
+    background-color: #e0e0e0;
+    color: #000;
+    font-size: 16px;
+    text-align: center;
+    box-sizing: border-box;
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.join-section input::placeholder {
+    color: #555;
+    opacity: 1;
+}
+
+.join-section input:hover {
+    box-shadow: 0 0 10px rgba(0,0,0,0.2);
+    transform: scale(1.02);
+}
+
+/* ==============================
+   PLAYER LIST
+================================= */
+
+.player-list {
+    list-style: none;
+    padding: 0;
+    margin-top: 16px;
+}
+
+.player-list li {
+    background: #e8faff;
+    border: 1px solid #b7e7f2;
+    padding: 12px;
+    margin: 8px auto;
+    width: 90%;
+    border-radius: 10px;
+    font-size: 16px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+}
+
+/* ==============================
+   STATUS MESSAGE
+================================= */
+
+#statusMsg {
+    margin: 16px 0;
+    color: #555;
+    font-weight: 500;
+}
+
+.small-word {
+    font-size: 16px;
+    font-weight: 500;
+    margin-top: 6px;
+    color: #444;
+}
+
+/* ==============================
+   RESPONSIVE
+================================= */
+
+@media (max-width: 600px) {
+    .page-container {
+        padding: 24px;
+    }
+
+    .player-list li {
+        width: 100%;
+    }
+
+    .lobby-code-section {
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .join-section input,
+    .join-section button {
+        font-size: 16px;
+    }
+}
+
+/* ==============================
+   CLUE LINE
+================================= */
+
+.clue-line {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    padding: 6px 0;
+    font-size: 16px;
+    border-bottom: 1px solid #eee;
+}
+
+.clue-name {
+    font-weight: bold;
+}
+
+.clue-word {
+    color: #333;
+}

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Lobby</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+
+<body>
+  <div class="page-container lobby-container">
+    <h1>Waiting Room: Assemble Your Crew!</h1>
+
+    <div class="lobby-code-section">
+        <span>LOBBY CODE: <strong id="lobbyCode">AB12CD</strong></span>
+        <button id="copyCodeBtn" class="btn small-btn">Copy</button>
+    </div>
+
+    <h2>Suspects in the Room</h2>
+    <ul id="playerList" class="player-list">
+        <li>John</li>
+        <li>Alice</li>
+        <li>Mike</li>
+        <li>Sara</li>
+    </ul>
+
+    <p id="statusMsg">Ready to start the game!</p>
+
+    <button id="startGameBtn" class="btn" disabled>Start Game</button>
+  </div>
+
+  <script>
+    const startBtn = document.getElementById('startGameBtn');
+    const playerList = document.getElementById('playerList');
+    
+    function updateStartButton() {
+        const playerCount = playerList.children.length;
+        if (playerCount >= 4) {
+            startBtn.disabled = false;
+            startBtn.style.backgroundColor = "#28a745"; // green
+        } else {
+            startBtn.disabled = true;
+            startBtn.style.backgroundColor = "#777"; // grey
+        }
+    }
+    
+    // Initial check
+    updateStartButton();
+    
+    // Copy Lobby Code functionality
+    document.getElementById('copyCodeBtn').addEventListener('click', () => {
+        const code = document.getElementById('lobbyCode').innerText;
+        navigator.clipboard.writeText(code).then(() => {
+            alert("Lobby code copied!");
+        });
+    });
+    
+    // Start Game functionality
+    startBtn.addEventListener('click', () => {
+        if (!startBtn.disabled) {
+            // Redirect to clue page
+            window.location.href = "game.html";
+        }
+    });
+    </script>    
+</body>
+</html>
