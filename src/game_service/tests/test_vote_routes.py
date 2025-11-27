@@ -1,14 +1,16 @@
 import pytest
-#from httpx import AsyncClient
+
+# from httpx import AsyncClient
 from httpx import AsyncClient, ASGITransport
 
-from admin.main import app  
+from admin.main import app
 
 from game_service.repositories.lobby_repo import LobbyRepository
 from game_service.repositories.game_repo import GameRepository
 from game_service.repositories.player_repo import PlayerRepository
 from game_service.repositories.clue_repo import ClueRepository
 from game_service.repositories.vote_repo import VoteRepository
+
 
 @pytest.mark.asyncio
 async def test_vote_and_scoring_flow(session, users):
@@ -30,7 +32,7 @@ async def test_vote_and_scoring_flow(session, users):
     for p in [p1, p2, p3, p4]:
         await clue_repo.create(game.id, p.id, round_number=1, clue_word="x")
 
-    #async with AsyncClient(app=app, base_url="http://test") as client:
+    # async with AsyncClient(app=app, base_url="http://test") as client:
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         r1 = await client.post(
@@ -56,6 +58,6 @@ async def test_vote_and_scoring_flow(session, users):
 
         data = rscore.json()
 
-        assert data["player_scores"][str(p2.id)] == 1  
-        assert data["player_scores"][str(p1.id)] == 2  
-        assert p1.id in data["impostor_ids"]  
+        assert data["player_scores"][str(p2.id)] == 1
+        assert data["player_scores"][str(p1.id)] == 2
+        assert p1.id in data["impostor_ids"]

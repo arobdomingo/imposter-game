@@ -1,5 +1,6 @@
 from game_service.repositories.clue_repo import ClueRepository
 
+
 class ClueService:
     def __init__(self, session):
         self.repo = ClueRepository(session)

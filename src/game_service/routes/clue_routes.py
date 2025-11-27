@@ -19,7 +19,6 @@ async def submit_clue(
     player_repo: PlayerRepository = Depends(get_player_repository),
     game_repo: GameRepository = Depends(get_game_repository),
 ):
-
     # validate game
     game = await game_repo.get_by_id(game_id)
     if not game:

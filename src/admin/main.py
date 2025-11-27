@@ -23,6 +23,7 @@ app.include_router(vote_router)
 app.include_router(chat_router)
 app.include_router(analytics_router)
 
+
 @app.get("/")
 async def root():
     return {"status": "ok", "service": "admin"}

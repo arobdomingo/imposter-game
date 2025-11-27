@@ -67,7 +67,6 @@ async def finalize_votes(
 
     result = scoring_service.compute_and_apply_scores(game_id)
 
-   
     await game_repo.update_status(
         game_id, "round_finished", current_round=game.current_round
     )
@@ -75,6 +74,6 @@ async def finalize_votes(
 
     return ScoreResultSchema(
         game_id=game_id,
-        impostor_ids=result["impostor_ids"],  
-        player_scores=result["player_scores"], 
+        impostor_ids=result["impostor_ids"],
+        player_scores=result["player_scores"],
     )

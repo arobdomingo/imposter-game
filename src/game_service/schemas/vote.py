@@ -1,5 +1,3 @@
-
-
 from datetime import datetime
 from typing import Dict, List, Optional
 
@@ -9,7 +7,7 @@ from pydantic import BaseModel
 class VoteRequestSchema(BaseModel):
     game_id: int
     voter_id: int
-    target_id: Optional[int] = None  
+    target_id: Optional[int] = None
 
 
 class VoteResultSchema(BaseModel):
@@ -21,5 +19,5 @@ class VoteResultSchema(BaseModel):
 
 class ScoreResultSchema(BaseModel):
     game_id: int
-    impostor_ids: List[int] 
-    player_scores: Dict[str, int]  
+    impostor_ids: List[int]
+    player_scores: Dict[str, int]
