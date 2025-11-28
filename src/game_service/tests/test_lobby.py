@@ -268,6 +268,7 @@ async def test_lobby_service_auto_start_game(session, users):
         assert game is not None
         assert game.lobby_id == lobby_id
         assert game.status == "waiting"  # Game starts in waiting status
+        assert game.mode == "aware"
 
 
 @pytest.mark.asyncio

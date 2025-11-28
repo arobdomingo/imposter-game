@@ -17,7 +17,7 @@ from fastapi import (
     Header,
     status,
 )
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from time import time
 from PIL import Image, UnidentifiedImageError
 from jose import jwt, JWTError
@@ -25,6 +25,8 @@ from jose import jwt, JWTError
 from sqlalchemy.exc import IntegrityError
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from urllib.parse import urlencode
+import httpx
 
 from admin.main import ui
 from .models.user import (
@@ -36,6 +38,7 @@ from .models.user import (
     UserResponseSchema,
     PaginatedUsersResponse,
     get_user_repository,
+    verify_password
 )
 from .models.friendship_routes import router as friendship_router
 from event_service.models.event_routes import router as event_router
@@ -46,6 +49,14 @@ from game_service.websocket import lobby_ws_router, game_ws_router
 
 logger = logging.getLogger("uvicorn.error")
 
+# --- Discord OAuth config ---
+DISCORD_CLIENT_ID = os.getenv("DISCORD_CLIENT_ID")
+DISCORD_CLIENT_SECRET = os.getenv("DISCORD_CLIENT_SECRET")
+DISCORD_REDIRECT_URI = os.getenv("DISCORD_REDIRECT_URI")
+
+DISCORD_OAUTH_AUTHORIZE_URL = "https://discord.com/oauth2/authorize"
+DISCORD_OAUTH_TOKEN_URL = "https://discord.com/api/oauth2/token"
+DISCORD_API_ME_URL = "https://discord.com/api/users/@me"
 
 app = FastAPI()
 
@@ -465,7 +476,7 @@ async def create_auth_token(
     expiry_str = payload.get("expiry")
 
     user = await user_repo.get_by_name(name)
-    if not user or user.password != password:
+    if not user or not verify_password(password, user.password):
         raise HTTPException(401, "Invalid credentials")
 
     try:
@@ -490,7 +501,6 @@ async def create_auth_token(
     await user_repo.update_jwt(user.id, token)
 
     return {"jwt": token}
-
 
 @app.delete("/v2/authentications/")
 async def delete_auth_token(
@@ -743,6 +753,91 @@ if not os.path.exists(PRIVATE_KEY_PATH):
                 format=serialization.PublicFormat.SubjectPublicKeyInfo,
             )
         )
+
+@app.get("/v2/authentications/discord/login")
+async def discord_login():
+    """
+    Start Discord OAuth login by redirecting the user to Discord's authorization page.
+    """
+
+    if not DISCORD_CLIENT_ID or not DISCORD_REDIRECT_URI:
+        # Misconfigured backend – missing env vars
+        raise HTTPException(status_code=500, detail="Discord OAuth is not configured on the server.")
+    
+    params = {"client_id": DISCORD_CLIENT_ID, "response_type": "code", "redirect_uri": DISCORD_REDIRECT_URI, "scope": "identify email"}
+    # optional: "state": <csrf_token>
+
+    url = f"{DISCORD_OAUTH_AUTHORIZE_URL}?{urlencode(params)}"
+
+    return RedirectResponse(url)
+
+@app.get("/v2/authentications/discord/callback")
+async def discord_callback(code: str, user_repo: UserRepository = Depends(get_user_repository)):
+
+    '''OAuth callback for Discord login. Discord redirects the user here with a `code` query parameter.
+        1) Exchange code for access token, 2) use token to fetch profile, 3) find/create local user, 4) issue a JWT'''
+    
+    if not (DISCORD_CLIENT_ID and DISCORD_CLIENT_SECRET and DISCORD_REDIRECT_URI):
+        raise HTTPException(status_code=500, detail="Discord OAuth is not configured on the server.")
+
+    token_data = {"client_id": DISCORD_CLIENT_ID, "client_secret": DISCORD_CLIENT_SECRET, "grant_type": "authorization_code", "code": code, "redirect_uri": DISCORD_REDIRECT_URI}
+
+    async with httpx.AsyncClient() as client:
+        token_resp = await client.post(DISCORD_OAUTH_TOKEN_URL, data=token_data)
+
+    # Something went wrong on the token exchange
+    if token_resp.status_code != 200:
+        raise HTTPException(status_code=400, detail="Failed to obtain access token from Discord.")
+    
+    token_json = token_resp.json()
+    access_token = token_json.get("access_token")
+    if not access_token:
+        raise HTTPException(status_code=400, detail="Discord did not return an access token.")
+    
+    headers = {"Authorization": f"Bearer {access_token}"}
+    async with httpx.AsyncClient() as client:
+        me_resp = await client.get(DISCORD_API_ME_URL, headers=headers)    
+
+    if me_resp.status_code != 200:
+        raise HTTPException(status_code=400, detail="Failed to fetch user profile from Discord.")
+    
+    me = me_resp.json()
+    discord_id = me["id"]
+    discord_username = me["username"]
+    discord_email = me.get("email")
+
+    existing_user = await user_repo.get_by_discord_id(discord_id)
+    if existing_user is None:
+        user = await user_repo.create_from_discord(discord_id=discord_id, username=discord_username, email=discord_email)
+    else:
+        user = existing_user
+
+    now = datetime.now(timezone.utc)
+    expiry = now + timedelta(hours=1)
+    expiry_timestamp = int(expiry.timestamp())
+
+    payload = {"sub": str(user.id), "exp": expiry_timestamp}
+    token = jwt.encode(payload, PRIVATE_KEY, algorithm="RS256")
+
+    await user_repo.update_jwt(user.id, token) # Store current JWT in the DB
+
+    return {"jwt": token, "user": UserSchema.from_db_model(user)}
+
+async def get_current_user_jwt(authorization: Optional[str] = Header(None), user_repo: UserRepository = Depends(get_user_repository)) -> User:
+    """Authenticate user using a Bearer JWT instead of Basic auth."""
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required", headers={"WWW-Authenticate": "Bearer"})
+
+    token = authorization.split(" ", 1)[1]
+
+    user = await verify_jwt(token, user_repo)
+    if not user:
+        raise HTTPException( status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    return user
 
 with open(PRIVATE_KEY_PATH, "rb") as f:
     PRIVATE_KEY = f.read()

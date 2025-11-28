@@ -74,6 +74,5 @@ class PlayerRepository:
         self.session.execute(stmt)
         self.session.commit()
 
-
 async def get_player_repository(db: Session = Depends(get_db)) -> PlayerRepository:
     return PlayerRepository(db)
