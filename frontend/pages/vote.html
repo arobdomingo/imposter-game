@@ -95,6 +95,76 @@
     #voteTimer {
       font-weight: bold;
     }
+
+    /* Chat styles */
+    .chat-container {
+      margin-top: 20px;
+      border-top: 2px solid #ddd;
+      padding-top: 20px;
+    }
+
+    .chat-box {
+      max-height: 200px;
+      overflow-y: auto;
+      background: #f8f9fa;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 10px;
+      border: 1px solid #e0e0e0;
+    }
+
+    .chat-message {
+      margin-bottom: 8px;
+      padding: 6px 10px;
+      background: white;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+
+    .chat-message .sender {
+      font-weight: 600;
+      color: #4b7bec;
+      margin-right: 6px;
+    }
+
+    .chat-message .time {
+      font-size: 11px;
+      color: #999;
+      margin-left: 6px;
+    }
+
+    .chat-input-container {
+      display: flex;
+      gap: 8px;
+    }
+
+    .chat-input {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+
+    .chat-send-btn {
+      padding: 10px 20px;
+      background-color: #4b7bec;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.2s ease;
+    }
+
+    .chat-send-btn:hover {
+      background-color: #3867d6;
+    }
+
+    .chat-send-btn:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
   </style>
 </head>
 <body>
@@ -111,86 +181,19 @@
     <p id="quirkyLine">🕵️‍♂️ Be smart, think carefully, and catch the imposter! 🧠</p>
 
     <h3>Time Remaining: <span id="voteTimer" class="timer-orange">30</span>s</h3>
+
+    <!-- Chat container -->
+    <div class="chat-container">
+      <h4 style="margin-bottom: 10px; color: #555;">💬 Discussion</h4>
+      <div class="chat-box" id="chatBox"></div>
+      <div class="chat-input-container">
+        <input type="text" class="chat-input" id="chatInput" placeholder="Type your message..." maxlength="200">
+        <button class="chat-send-btn" id="chatSendBtn">Send</button>
+      </div>
+    </div>
   </div>
 
-  <script>
-    const players = ['John', 'Alice', 'Sara', 'Mike'];
-    let currentPlayerIndex = 0;
-    const voteDuration = 30;
-    let timerInterval;
-
-    const playerTurnEl = document.getElementById('playerTurn');
-    const suspectOptionsEl = document.getElementById('suspectOptions');
-    const voteTimerEl = document.getElementById('voteTimer');
-    const voteStatusEl = document.getElementById('voteStatus');
-
-    function startTurn() {
-      const currentPlayer = players[currentPlayerIndex];
-      playerTurnEl.textContent = `It's ${currentPlayer}'s turn to vote!`;
-
-      const options = players.filter(p => p !== currentPlayer);
-
-      suspectOptionsEl.innerHTML = '';
-      options.forEach(opt => {
-        const btn = document.createElement('button');
-        btn.textContent = opt;
-        btn.onclick = () => submitVote(currentPlayer, opt);
-        suspectOptionsEl.appendChild(btn);
-      });
-
-      startTimer(voteDuration);
-    }
-
-    function submitVote(player, suspect) {
-      voteStatusEl.textContent = `${player} voted for ${suspect}!`;
-      clearInterval(timerInterval);
-
-      currentPlayerIndex++;
-      if (currentPlayerIndex < players.length) {
-        setTimeout(() => {
-          voteStatusEl.textContent = '';
-          startTurn();
-        }, 1000);
-      } else {
-        voteStatusEl.textContent = 'All votes submitted! Redirecting...';
-        setTimeout(() => {
-          window.location.href = 'results.html';
-        }, 2000);
-      }
-    }
-
-    function startTimer(seconds) {
-      let timeLeft = seconds;
-      voteTimerEl.textContent = timeLeft;
-      voteTimerEl.className = 'timer-orange';
-      timerInterval = setInterval(() => {
-        timeLeft--;
-        voteTimerEl.textContent = timeLeft;
-
-        if (timeLeft <= 5) voteTimerEl.className = 'timer-red';
-        else voteTimerEl.className = 'timer-orange';
-
-        if (timeLeft <= 0) {
-          clearInterval(timerInterval);
-          voteStatusEl.textContent = `${players[currentPlayerIndex]} did not vote!`;
-          currentPlayerIndex++;
-          if (currentPlayerIndex < players.length) {
-            setTimeout(() => {
-              voteStatusEl.textContent = '';
-              startTurn();
-            }, 1000);
-          } else {
-            voteStatusEl.textContent = 'All votes done! Redirecting...';
-            setTimeout(() => {
-              window.location.href = 'results.html';
-            }, 2000);
-          }
-        }
-      }, 1000);
-    }
-
-    // Start first turn
-    startTurn();
-  </script>
+  <script src="/js/api.js"></script>
+  <script src="/js/vote.js"></script>
 </body>
 </html>

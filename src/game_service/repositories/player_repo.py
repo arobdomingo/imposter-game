@@ -55,12 +55,25 @@ class PlayerRepository:
     async def get_player_by_id(self, player_id: int) -> Optional[Player]:
         return await self.get_by_id(player_id)
 
+    async def get_by_seat(self, game_id: int, seat_no: int) -> Optional[Player]:
+        """Get a player by game_id and seat number."""
+        stmt = select(Player).where(
+            Player.game_id == game_id, Player.seat_no == seat_no
+        )
+        return self.session.scalar(stmt)
+
     async def update_score(self, player_id: int, score_delta: int) -> None:
         stmt = (
             update(Player)
             .where(Player.id == player_id)
             .values(score=Player.score + score_delta)
         )
+        self.session.execute(stmt)
+        self.session.commit()
+
+    async def set_score(self, player_id: int, score: int) -> None:
+        """Set the score for a player (not increment)."""
+        stmt = update(Player).where(Player.id == player_id).values(score=score)
         self.session.execute(stmt)
         self.session.commit()
 
@@ -73,6 +86,7 @@ class PlayerRepository:
         stmt = delete(Player).where(Player.game_id == game_id)
         self.session.execute(stmt)
         self.session.commit()
+
 
 async def get_player_repository(db: Session = Depends(get_db)) -> PlayerRepository:
     return PlayerRepository(db)

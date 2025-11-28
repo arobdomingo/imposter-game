@@ -1,170 +1,537 @@
-/*******************************************
- * FULL TURN-BASED MOCK MULTIPLAYER (2 ROUNDS)
- *******************************************/
+// Wait for API to load
+document.addEventListener('DOMContentLoaded', () => {
+  // Load API script if not already loaded
+  if (!window.API) {
+    const script = document.createElement('script');
+    script.src = '/js/api.js';
+    document.head.appendChild(script);
+    script.onload = initGamePage;
+  } else {
+    initGamePage();
+  }
+});
 
-let players = [
-    { id: "p1", name: "John", role: "Player" },
-    { id: "p2", name: "Alice", role: "Player" },
-    { id: "p3", name: "Mike", role: "Imposter" },
-    { id: "p4", name: "Sara", role: "Player" }
-];
+function initGamePage() {
+  // Get game info from URL
+  const params = new URLSearchParams(window.location.search);
+  const gameId = parseInt(params.get("game_id"));
+  const lobbyId = parseInt(params.get("lobby_id"));
+  const lobbyCode = params.get("code") || "";
 
-let realWord = "School";
+  if (!gameId) {
+    alert("Game ID not found. Redirecting to home...");
+    window.location.href = "/home";
+    return;
+  }
 
-let imposter = players.find(p => p.role === "Imposter");
-let civilians = players.filter(p => p.role !== "Imposter");
-let turnOrder = [...civilians, imposter];
+  // Get current user ID
+  const currentUserId = window.API.getCurrentUserId();
+  if (!currentUserId) {
+    alert("Please login first!");
+    window.location.href = "/login";
+    return;
+  }
 
-let clues = { 1: [], 2: [] };
+  // Game state
+  let gameState = {
+    gameId: gameId,
+    lobbyId: lobbyId,
+    currentUserId: currentUserId,
+    currentRound: 1,
+    myPlayer: null,
+    myPlayerId: null,
+    myWord: null,
+    isImposter: false,
+    players: [],
+    submittedClues: {},
+    gameStatus: "clue_submission",
+    roleData: null,
+    originalPlayerCount: 0,
+    playerCheckInterval: null
+  };
 
-let currentRound = 1;
-let maxRounds = 2;
+  // Elements
+  const roleText = document.getElementById("roleText");
+  const assignedWord = document.getElementById("assignedWord");
+  const timerEl = document.getElementById("roundTimer");
+  const previousCluesBox = document.getElementById("previousClues");
+  const clueInput = document.getElementById("clueInput");
+  const submitBtn = document.getElementById("submitClueBtn");
+  const clueStatus = document.getElementById("clueStatus");
 
-let myIndex = 0;
-let myPlayer = turnOrder[myIndex];
+  // Timer - Imposter gets 50 seconds, others get 30 seconds
+  let timeLeft = 30;
+  let timer = null;
+  let pollingInterval = null; // Store polling interval ID
 
-// grab elements
-const roleText = document.getElementById("roleText");
-const assignedWord = document.getElementById("assignedWord");
-const timerEl = document.getElementById("roundTimer");
-const previousCluesBox = document.getElementById("previousClues");
-const clueInput = document.getElementById("clueInput");
-const submitBtn = document.getElementById("submitClueBtn");
-const clueStatus = document.getElementById("clueStatus");
+  // ----- Initialize game -----
+  async function initGame() {
+    try {
+      // Get player's role and word
+      const roleData = await window.API.Lobby.getRole(gameId, currentUserId);
+      gameState.roleData = roleData;
+      gameState.myPlayerId = roleData.player_id;
+      gameState.myWord = roleData.word;
+      gameState.isImposter = roleData.is_imposter || false;
+      
+      // Set timer based on role: Imposter gets 50 seconds, others get 30
+      timeLeft = gameState.isImposter ? 50 : 30;
 
+      // Get game info to get players
+      const gameData = await window.API.Lobby.getGame(lobbyId);
+      if (gameData && gameData.players) {
+        gameState.players = gameData.players;
+        // Set original player count if not set
+        if (gameState.originalPlayerCount === 0) {
+          gameState.originalPlayerCount = gameData.players.length;
+        }
+        // Find my player object
+        gameState.myPlayer = gameData.players.find(p => p.user_id === currentUserId);
+        if (!gameState.myPlayer) {
+          // Create a placeholder player object
+          gameState.myPlayer = {
+            user_id: currentUserId,
+            seat_no: roleData.seat_no || 1
+          };
+        }
+      }
 
-function renderRoleAndWord() {
-    if (myPlayer.role === "Imposter") {
-        roleText.innerHTML = `&#127917; You are the IMPOSTER, ${myPlayer.name} &mdash; Blend in&hellip; or be exposed`;
-        assignedWord.innerText = "Blend. Trick. Survive.";
-    } else {
-        roleText.innerHTML = `&#128737; Your turn, ${myPlayer.name} &mdash; Protect the secret word!`;
-        assignedWord.innerText = realWord;
+      renderRoleAndWord();
+      startPolling();
+    } catch (err) {
+      console.error("Error initializing game:", err);
+      alert("Failed to load game. Redirecting...");
+      window.location.href = "/home";
     }
-}
+  }
 
-function renderPreviousClues() {
-    previousCluesBox.innerHTML = "";
+  // ----- Render role and word -----
+  function renderRoleAndWord() {
+    if (gameState.isImposter) {
+      roleText.innerHTML = `&#127917; You are the IMPOSTER &mdash; Blend in&hellip; or be exposed`;
+      assignedWord.innerText = gameState.myWord || "Blend. Trick. Survive.";
+    } else {
+      roleText.innerHTML = `&#128737; Your turn &mdash; Protect the secret word!`;
+      assignedWord.innerText = gameState.myWord || "???";
+    }
+  }
 
-    for (let r = 1; r <= currentRound; r++) {
-        if (clues[r].length === 0) continue;
+  // ----- Check if it's my turn to submit -----
+  async function checkMyTurn() {
+    try {
+      if (!gameState.myPlayerId) return false;
 
-        const header = document.createElement("p");
-        header.style.fontWeight = "bold";
-        header.style.marginTop = "12px";
-        header.innerText = `Round ${r}`;
-        previousCluesBox.appendChild(header);
+      // Try to submit a test clue to see if it's our turn
+      // The API will return an error if it's not our turn
+      // Actually, better approach: check if we've already submitted
+      const mySubmitted = gameState.submittedClues[currentUserId]?.[gameState.currentRound];
+      if (mySubmitted) {
+        return false; // Already submitted
+      }
 
-        clues[r].forEach(c => {
+      // Get all players and their clues for current round
+      const players = gameState.players;
+      if (!players || players.length === 0) return false;
+
+      // Sort players by seat_no
+      const sortedPlayers = [...players].sort((a, b) => (a.seat_no || 0) - (b.seat_no || 0));
+      const mySeat = gameState.myPlayer?.seat_no || gameState.roleData?.seat_no || 1;
+
+      // Check if all players before me have submitted
+      // We'll check this by trying to submit (API will reject if not our turn)
+      // Or we can poll for clues
+      // For now, let's assume it's our turn if we haven't submitted
+      // The API will handle the validation
+      return true; // Let API handle turn validation
+    } catch (err) {
+      console.error("Error checking turn:", err);
+      return false;
+    }
+  }
+
+  // ----- Update previous clues display -----
+  async function updatePreviousClues() {
+    try {
+      previousCluesBox.innerHTML = "";
+
+      const players = gameState.players;
+      if (!players || players.length === 0) return;
+
+      // Imposter can see all submitted clues in real-time
+      if (gameState.isImposter) {
+        // Show all submitted clues for Imposter
+        const sortedPlayers = [...players].sort((a, b) => (a.seat_no || 0) - (b.seat_no || 0));
+        
+        let hasClues = false;
+        for (const player of sortedPlayers) {
+          // Don't show own clue
+          if (player.user_id === currentUserId) continue;
+          
+          const clue = gameState.submittedClues[player.user_id]?.[gameState.currentRound];
+          if (clue) {
+            hasClues = true;
             const row = document.createElement("div");
-            row.classList.add("clue-line");
-
-            row.innerHTML = `
-                <span class="clue-name">${c.name}</span>
-                <span class="clue-word">${c.clue}</span>
-            `;
-
+            row.style.margin = "4px 0";
+            row.style.fontSize = "14px";
+            const playerName = player.user_name || `Player ${player.seat_no}`;
+            row.innerHTML = `<strong>${playerName}:</strong> ${clue}`;
             previousCluesBox.appendChild(row);
-        });
+          }
+        }
+        
+        if (!hasClues) {
+          previousCluesBox.innerHTML = "<p style='color: #666;'>No clues submitted yet...</p>";
+        }
+      } else {
+        // Regular players don't see clues until all are submitted
+        previousCluesBox.innerHTML = "<p style='color: #666;'>Waiting for all players to submit...</p>";
+      }
+    } catch (err) {
+      console.error("Error updating previous clues:", err);
     }
-}
+  }
+  
+  // ----- Update all clues (when all players submitted) -----
+  async function updateAllClues() {
+    try {
+      previousCluesBox.innerHTML = "";
 
+      const players = gameState.players;
+      if (!players || players.length === 0) return;
 
-// ---------------- TIMER ----------------
+      const sortedPlayers = [...players].sort((a, b) => (a.seat_no || 0) - (b.seat_no || 0));
+      
+      const header = document.createElement("p");
+      header.style.fontWeight = "bold";
+      header.style.marginBottom = "8px";
+      header.innerText = "All Clues:";
+      previousCluesBox.appendChild(header);
+      
+      for (const player of sortedPlayers) {
+        const clue = gameState.submittedClues[player.user_id]?.[gameState.currentRound];
+        if (clue) {
+          const row = document.createElement("div");
+          row.style.margin = "4px 0";
+          row.style.fontSize = "14px";
+          const playerName = player.user_name || `Player ${player.seat_no}`;
+          const isMe = player.user_id === currentUserId;
+          row.innerHTML = `<strong>${playerName}${isMe ? " (You)" : ""}:</strong> ${clue}`;
+          previousCluesBox.appendChild(row);
+        }
+      }
+    } catch (err) {
+      console.error("Error updating all clues:", err);
+    }
+  }
 
-let timeLeft = 30;
-let timer = null;
-
-function updateColor() {
+  // ----- Timer functions -----
+  function updateColor() {
     timerEl.classList.remove("timer-black", "timer-orange", "timer-red");
-
     if (timeLeft <= 5) {
-        timerEl.classList.add("timer-red");
+      timerEl.classList.add("timer-red");
     } else if (timeLeft <= 10) {
-        timerEl.classList.add("timer-orange");
+      timerEl.classList.add("timer-orange");
     } else {
-        timerEl.classList.add("timer-black");
+      timerEl.classList.add("timer-black");
     }
-}
+  }
 
-function tick() {
+  function tick() {
     timerEl.textContent = timeLeft;
     updateColor();
     timeLeft--;
 
     if (timeLeft < 0) {
-        clearInterval(timer);
-        onClueSubmitted("(no clue)");
+      clearInterval(timer);
+      onClueSubmitted("(skipped)");
     }
-}
+  }
 
-function startTimer() {
+  function startTimer() {
     if (timer) clearInterval(timer);
+    // Don't reset timeLeft here - use the value set during initialization
     timerEl.textContent = timeLeft;
     updateColor();
     timer = setInterval(tick, 1000);
-}
+  }
 
-
-// ---------------- CLUE SUBMISSION ----------------
-
-submitBtn.addEventListener("click", () => {
-    const clue = clueInput.value.trim();
-    if (clue === "") {
-        clueStatus.innerText = "Please enter a clue!";
-        return;
+  // ----- Submit clue -----
+  async function onClueSubmitted(clueWord) {
+    if (!gameState.myPlayerId) {
+      alert("Player ID not found. Please refresh the page.");
+      return;
     }
-    onClueSubmitted(clue);
-});
 
-function onClueSubmitted(clue) {
-    clues[currentRound].push({ name: myPlayer.name, clue });
+    try {
+      clueInput.disabled = true;
+      submitBtn.disabled = true;
+      clueStatus.innerText = "Submitting clue...";
+      clearInterval(timer);
 
-    clueInput.disabled = true;
-    submitBtn.disabled = true;
+      const skipped = clueWord === "(skipped)" || clueWord === "(no clue)";
+      const clue = skipped ? "" : clueWord.trim();
 
-    clueStatus.innerText = "Clue submitted. Waiting for others...";
-    clearInterval(timer);
+      const response = await window.API.Game.submitClue(
+        gameState.gameId,
+        gameState.myPlayerId,
+        gameState.currentRound,
+        clue,
+        skipped
+      );
 
-    setTimeout(() => advanceTurn(), 800);
-}
+      // Store submitted clue
+      if (!gameState.submittedClues[currentUserId]) {
+        gameState.submittedClues[currentUserId] = {};
+      }
+      gameState.submittedClues[currentUserId][gameState.currentRound] = clue || "(skipped)";
 
-function advanceTurn() {
-    if (myIndex === turnOrder.length - 1) {
-        if (currentRound === maxRounds) {
-            window.location.href = "vote.html";
-            return;
+      // Update previous clues from response
+      // For Imposter: show all submitted clues immediately
+      // For others: only store, will show after all submitted
+      if (response.previous_clues) {
+        response.previous_clues.forEach(pc => {
+          // Find player by player_id or user_id
+          const player = gameState.players.find(p => 
+            p.id === pc.player_id || p.user_id === pc.user_id
+          );
+          if (player) {
+            if (!gameState.submittedClues[player.user_id]) {
+              gameState.submittedClues[player.user_id] = {};
+            }
+            gameState.submittedClues[player.user_id][gameState.currentRound] = pc.clue_word;
+          } else if (pc.user_id) {
+            // Store by user_id if player object not found
+            if (!gameState.submittedClues[pc.user_id]) {
+              gameState.submittedClues[pc.user_id] = {};
+            }
+            gameState.submittedClues[pc.user_id][gameState.currentRound] = pc.clue_word;
+          }
+        });
+      }
+      
+      // Update display immediately for Imposter
+      if (gameState.isImposter) {
+        await updatePreviousClues();
+      }
+
+      clueStatus.innerText = "Clue submitted! Waiting for others...";
+
+      // Check if all players submitted
+      if (response.move_to_voting) {
+        // All players submitted, show all clues to everyone, then move to voting
+        // Stop polling and timer
+        if (pollingInterval) {
+          clearInterval(pollingInterval);
+          pollingInterval = null;
         }
-
-        currentRound++;
-        myIndex = 0;
-        myPlayer = turnOrder[0];
-
-        resetTurnUI();
-        return;
+        if (timer) {
+          clearInterval(timer);
+          timer = null;
+        }
+        // Update clues display to show all clues
+        await updateAllClues();
+        clueStatus.innerText = "All clues submitted! Moving to voting...";
+        setTimeout(() => {
+          window.location.href = `/vote?game_id=${gameState.gameId}&lobby_id=${gameState.lobbyId}&code=${lobbyCode}`;
+        }, 2000); // Give 2 seconds to see all clues
+      } else {
+        // Continue polling for other players' submissions
+        // For Imposter, update clues display
+        if (gameState.isImposter) {
+          await updatePreviousClues();
+        }
+      }
+    } catch (err) {
+      console.error("Error submitting clue:", err);
+      alert(err.message || "Failed to submit clue. Please try again.");
+      clueInput.disabled = false;
+      submitBtn.disabled = false;
+      startTimer();
     }
+  }
 
-    myIndex++;
-    myPlayer = turnOrder[myIndex];
+  // ----- Polling for game state -----
+  async function pollGameState() {
+    try {
+      // Check game status first - if it's "voting", all players have submitted
+      const gameData = await window.API.Lobby.getGame(gameState.lobbyId);
+      if (gameData && gameData.status === "voting") {
+        // All players submitted, show all clues and redirect to voting
+        if (pollingInterval) {
+          clearInterval(pollingInterval);
+          pollingInterval = null;
+        }
+        if (timer) {
+          clearInterval(timer);
+          timer = null;
+        }
+        await updateAllClues();
+        clueStatus.innerText = "All clues submitted! Moving to voting...";
+        setTimeout(() => {
+          window.location.href = `/vote?game_id=${gameState.gameId}&lobby_id=${gameState.lobbyId}&code=${lobbyCode}`;
+        }, 2000);
+        return; // Stop polling
+      }
 
-    resetTurnUI();
+      // Check if we've already submitted
+      const mySubmitted = gameState.submittedClues[currentUserId]?.[gameState.currentRound];
+      
+      if (!mySubmitted && clueInput.disabled && !clueStatus.innerText.includes("Submitting")) {
+        // Haven't submitted yet, enable input
+        clueInput.disabled = false;
+        submitBtn.disabled = false;
+        clueStatus.innerText = gameState.isImposter 
+          ? "You're the Imposter! Enter a clue (you have 50 seconds and can see others' clues)."
+          : "Enter your clue!";
+        if (!timer) {
+          startTimer();
+        }
+      } else if (mySubmitted) {
+        // Already submitted, just update clues display
+        clueStatus.innerText = "Clue submitted! Waiting for others...";
+      }
+      
+      // For Imposter: poll for new clues from other players
+      if (gameState.isImposter && !mySubmitted) {
+        await fetchAndUpdateClues();
+      }
+      
+      // Update clues display
+      await updatePreviousClues();
+    } catch (err) {
+      console.error("Error polling game state:", err);
+    }
+  }
+
+  // ----- Check if players left the lobby -----
+  async function checkPlayersLeft() {
+    try {
+      const lobbyState = await window.API.Lobby.getState(lobbyId);
+      if (lobbyState && lobbyState.players) {
+        const currentMemberCount = lobbyState.players.length;
+        
+        // If we haven't set original count yet, set it
+        if (gameState.originalPlayerCount === 0) {
+          gameState.originalPlayerCount = currentMemberCount;
+        }
+        
+        // Check if players left
+        if (currentMemberCount < gameState.originalPlayerCount) {
+          // Player left - interrupt game
+          interruptGame("A player has left the lobby. The game has been interrupted.");
+          return;
+        }
+        
+        // Also check if we have less than 3 players (minimum required)
+        if (currentMemberCount < 3) {
+          interruptGame("Not enough players remaining. The game has been interrupted.");
+          return;
+        }
+      }
+    } catch (err) {
+      console.error("Error checking players:", err);
+    }
+  }
+
+  function interruptGame(message) {
+    // Stop all timers and polling
+    if (timer) {
+      clearInterval(timer);
+      timer = null;
+    }
+    if (pollingInterval) {
+      clearInterval(pollingInterval);
+      pollingInterval = null;
+    }
+    if (gameState.playerCheckInterval) {
+      clearInterval(gameState.playerCheckInterval);
+      gameState.playerCheckInterval = null;
+    }
+    
+    // Show alert and redirect
+    alert(message);
+    setTimeout(() => {
+      window.location.href = `/lobby?lobby_id=${lobbyId}&code=${lobbyCode}`;
+    }, 2000);
+  }
+
+  function startPlayerCheck() {
+    // Check every 3 seconds if players left
+    gameState.playerCheckInterval = setInterval(() => {
+      checkPlayersLeft();
+    }, 3000);
+  }
+  
+  // ----- Fetch clues from API (for Imposter) -----
+  async function fetchAndUpdateClues() {
+    try {
+      const response = await window.API.Game.getCluesForRound(gameState.gameId, gameState.currentRound);
+      if (response && response.clues) {
+        // Update submitted clues from API response
+        response.clues.forEach(clueData => {
+          if (clueData.user_id && clueData.user_id !== currentUserId) {
+            if (!gameState.submittedClues[clueData.user_id]) {
+              gameState.submittedClues[clueData.user_id] = {};
+            }
+            gameState.submittedClues[clueData.user_id][gameState.currentRound] = clueData.clue_word;
+          }
+        });
+        // Update display
+        await updatePreviousClues();
+      }
+    } catch (err) {
+      // Silently handle errors (clues might not be available yet)
+      if (err.status !== 404) {
+        console.error("Error fetching clues:", err);
+      }
+    }
+  }
+
+  function startPolling() {
+    // Clear any existing polling interval
+    if (pollingInterval) {
+      clearInterval(pollingInterval);
+    }
+    
+    // Initial setup
+    if (!gameState.submittedClues[currentUserId]?.[gameState.currentRound]) {
+      clueInput.disabled = false;
+      submitBtn.disabled = false;
+      clueStatus.innerText = gameState.isImposter 
+        ? "You're the Imposter! Enter a clue (you have 50 seconds and can see others' clues)."
+        : "Enter your clue!";
+      startTimer();
+    }
+    
+    // Initial poll
+    pollGameState();
+    
+    // Poll every 2 seconds to update clues display (especially for Imposter)
+    pollingInterval = setInterval(() => {
+      pollGameState();
+    }, 2000);
+
+    // Start checking for players leaving
+    startPlayerCheck();
+  }
+
+  // ----- Event listeners -----
+  submitBtn.addEventListener("click", async () => {
+    const clue = clueInput.value.trim();
+    if (clue === "" && !clueInput.disabled) {
+      clueStatus.innerText = "Please enter a clue!";
+      return;
+    }
+    await onClueSubmitted(clue);
+  });
+
+  // Enter key to submit
+  clueInput.addEventListener("keypress", (e) => {
+    if (e.key === "Enter" && !clueInput.disabled) {
+      submitBtn.click();
+    }
+  });
+
+  // Initialize
+  initGame();
 }
-
-function resetTurnUI() {
-    clueInput.disabled = false;
-    clueInput.value = "";
-    submitBtn.disabled = false;
-    clueStatus.innerText = "";
-
-    timeLeft = 30;
-
-    renderRoleAndWord();
-    renderPreviousClues();
-
-    startTimer();
-}
-
-// INIT
-renderRoleAndWord();
-renderPreviousClues();
-startTimer();

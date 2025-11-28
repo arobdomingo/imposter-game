@@ -1,12 +1,12 @@
 from datetime import datetime
 
-from pydantic import BaseModel, constr
+from pydantic import BaseModel
 
 
 class ClueSubmitSchema(BaseModel):
     player_id: int
     round_number: int
-    clue_word: constr(min_length=1, max_length=64)  # type: ignore[valid-type]
+    clue_word: str = ""  # Allow empty string for skipped clues
     skipped: bool = False
 
 
@@ -17,3 +17,6 @@ class ClueResponseSchema(BaseModel):
     clue_word: str
     skipped: bool
     submitted_at: datetime
+    previous_clues: list[dict] = []  # Additional fields for response
+    can_submit_next: bool = True
+    move_to_voting: bool = False

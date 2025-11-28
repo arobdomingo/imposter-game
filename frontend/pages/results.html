@@ -129,6 +129,84 @@
       transform: scale(1.05);
       background-color: #3867d6;
     }
+
+    /* Chat styles */
+    .chat-container {
+      margin-top: 20px;
+      border-top: 2px solid #ddd;
+      padding-top: 20px;
+    }
+
+    .chat-box {
+      max-height: 200px;
+      overflow-y: auto;
+      background: #f8f9fa;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 10px;
+      border: 1px solid #e0e0e0;
+    }
+
+    .chat-message {
+      margin-bottom: 8px;
+      padding: 6px 10px;
+      background: white;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+
+    .chat-message .sender {
+      font-weight: 600;
+      color: #4b7bec;
+      margin-right: 6px;
+    }
+
+    .chat-message .sender.imposter {
+      color: #d93a3a;
+    }
+
+    .chat-message .sender.imposter::after {
+      content: " 🎭";
+    }
+
+    .chat-message .time {
+      font-size: 11px;
+      color: #999;
+      margin-left: 6px;
+    }
+
+    .chat-input-container {
+      display: flex;
+      gap: 8px;
+    }
+
+    .chat-input {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+
+    .chat-send-btn {
+      padding: 10px 20px;
+      background-color: #4b7bec;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.2s ease;
+    }
+
+    .chat-send-btn:hover {
+      background-color: #3867d6;
+    }
+
+    .chat-send-btn:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
   </style>
 </head>
 <body>
@@ -148,55 +226,37 @@
     </div>
 
     <!-- View Scores Button -->
-    <button class="view-scores-btn" onclick="window.location.href='leaderboard.html'">
+    <button class="view-scores-btn" onclick="window.location.href='/leaderboard'">
       View Scores
     </button>
+
+    <!-- Player Left Warning (Host only) -->
+    <div id="playerLeftWarning" style="display: none; margin-top: 12px; padding: 12px; background-color: #fff3cd; border: 2px solid #ffc107; border-radius: 12px; color: #856404;">
+      <!-- Warning message will be inserted here -->
+    </div>
+
+    <!-- Start Next Round Button (Host only) -->
+    <button id="startNextRoundBtn" class="view-scores-btn" style="display: none; background-color: #28a745; margin-top: 12px;">
+      Start Next Round 🎮
+    </button>
+
+    <!-- Player Left Warning (Host only) -->
+    <div id="playerLeftWarning" style="display: none; margin-top: 12px; padding: 12px; background-color: #fff3cd; border: 2px solid #ffc107; border-radius: 12px; color: #856404;">
+      <p style="margin: 0; font-weight: 600;">⚠️ Some players have left the lobby. You need at least 3 players to start a new round.</p>
+    </div>
+
+    <!-- Chat container -->
+    <div class="chat-container">
+      <h4 style="margin-bottom: 10px; color: #555;">💬 Post-Game Discussion</h4>
+      <div class="chat-box" id="chatBox"></div>
+      <div class="chat-input-container">
+        <input type="text" class="chat-input" id="chatInput" placeholder="Type your message..." maxlength="200">
+        <button class="chat-send-btn" id="chatSendBtn">Send</button>
+      </div>
+    </div>
   </div>
 
-  <script>
-    // Example data from vote round
-    const votes = [
-      { voter: 'John', votedFor: 'Alice' },
-      { voter: 'Alice', votedFor: 'Sara' },
-      { voter: 'Sara', votedFor: 'John' },
-      { voter: 'Mike', votedFor: 'Alice' }
-    ];
-
-    const realImposter = 'Sara'; // Replace with actual imposter
-
-    const players = ['John', 'Alice', 'Sara', 'Mike'];
-    const resultsEl = document.getElementById('resultsList');
-    const imposterEl = document.getElementById('realImposter');
-
-    // Count votes per player
-    const voteCount = {};
-    players.forEach(p => voteCount[p] = 0);
-    votes.forEach(v => voteCount[v.votedFor]++);
-
-    // Show each player's vote
-    votes.forEach(v => {
-      const li = document.createElement('li');
-      li.innerHTML = `<span class="name">@${v.voter}</span> voted for <span class="votes">@${v.votedFor}</span>`;
-      resultsEl.appendChild(li);
-    });
-
-    // Show total votes
-    const totalsHeader = document.createElement('li');
-    totalsHeader.style.fontWeight = '700';
-    totalsHeader.style.marginTop = '10px';
-    totalsHeader.style.borderTop = '2px solid #ddd';
-    totalsHeader.style.paddingTop = '10px';
-    totalsHeader.textContent = 'Total Votes:';
-    resultsEl.appendChild(totalsHeader);
-
-    players.forEach(p => {
-      const li = document.createElement('li');
-      li.innerHTML = `<span class="name">@${p}</span><span class="votes">${voteCount[p]} votes</span>`;
-      resultsEl.appendChild(li);
-    });
-
-    // Reveal real imposter
-    imposterEl.textContent = `@${realImposter}`;
-  </script>
+  <script src="/js/api.js"></script>
+  <script src="/js/results.js"></script>
 </body>
 </html>

@@ -3,10 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <title>Login | Imposter Game</title>
-  <link rel="stylesheet" href="../shared/reset.css" />
-  <link rel="stylesheet" href="../shared/tokens.css" />
-  <link rel="stylesheet" href="styles.css" />
-  <script defer src="../js/app.js"></script>
+  <link rel="stylesheet" href="/shared/reset.css" />
+  <link rel="stylesheet" href="/shared/tokens.css" />
+  <link rel="stylesheet" href="/pages/styles.css" />
+  <script src="/js/api.js"></script>
+  <script defer src="/js/app.js"></script>
 
   <!-- Page-specific login styles -->
   <style>
@@ -168,16 +169,46 @@
     emailEl.addEventListener('input', validate);
     passEl.addEventListener('input', validate);
 
-    form.addEventListener('submit', (e) => {
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
       
-      // Stub: token creation
-      Auth.set('fake_token_' + Date.now());
-      loginBtn.textContent = 'Logged in';
+      const email = emailEl.value;
+      const password = passEl.value;
+      
+      loginBtn.textContent = 'Logging in...';
       loginBtn.disabled = true;
 
-      // Redirect to home page
-      window.location.href = "home.html";
+      try {
+        // Load API if not loaded
+        if (!window.API) {
+          const script = document.createElement('script');
+          script.src = '../js/api.js';
+          document.head.appendChild(script);
+          await new Promise((resolve) => {
+            script.onload = resolve;
+          });
+        }
+
+        const result = await window.API.User.login(email, password);
+        
+        if (result.token) {
+          Auth.set(result.token);
+          localStorage.setItem('current_user_id', result.user_id || result.id || '1');
+          loginBtn.textContent = 'Logged in!';
+          
+          // Redirect to home page
+          setTimeout(() => {
+            window.location.href = "/home";
+          }, 500);
+        } else {
+          throw new Error('Login failed');
+        }
+      } catch (error) {
+        console.error('Login error:', error);
+        alert(error.message || 'Login failed. Please check your credentials.');
+        loginBtn.textContent = 'Login';
+        loginBtn.disabled = false;
+      }
     });
 
     function discordLogin() {

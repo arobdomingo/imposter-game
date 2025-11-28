@@ -36,7 +36,7 @@ async def post_chat(
     game = await game_repo.get_by_id(game_id)
     if not game:
         raise HTTPException(status_code=404, detail="Game not found")
-    if game.status not in ("discussion", "voting"):
+    if game.status not in ("discussion", "voting", "finished"):
         raise HTTPException(status_code=403, detail="Chat closed in this phase")
     player = await player_repo.get_by_id(payload.player_id)
     if not player or player.game_id != game_id:

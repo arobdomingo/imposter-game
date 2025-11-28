@@ -9,6 +9,7 @@ from game_service.repositories import (
 )
 from game_service.services import WordService, WordPair, GameEngine, GameEngineConfig
 
+
 def test_word_service_modes():
     service = WordService([WordPair("common", "impostor")])
     common, impostor = service.get_words(mode="aware")
@@ -63,6 +64,7 @@ async def test_game_engine_start_game(session, users):
 
     crew_words = {p.word for p in players if not p.is_imposter}
     assert crew_words == {"common"}
+
 
 @pytest.mark.asyncio
 async def test_game_engine_start_game_aware_mode(session, users):

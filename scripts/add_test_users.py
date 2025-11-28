@@ -30,46 +30,78 @@ from src.shared.database import get_db  # noqa: E402
 
 
 async def add_test_users():
-    """Add 20,000 test users"""
+    """Add 10 test users with complete information"""
     print("Starting to add test users...")
 
     # Get database session
     db = next(get_db())
 
     try:
-        # Batch insert user data
-        batch_size = 1000  # Insert 1000 users per batch
-        total_users = 20000
+        from src.user_service.models.user import User, UserRepository
+        from sqlalchemy.exc import IntegrityError
 
-        for batch_start in range(1, total_users + 1, batch_size):
-            batch_end = min(batch_start + batch_size - 1, total_users)
+        user_repo = UserRepository(db)
+        total_users = 10
 
-            # Prepare batch data
-            users_data = []
-            for i in range(batch_start, batch_end + 1):
-                username = f"test_user_{i:05d}"
-                users_data.append({"name": username})
+        # Prepare user data with email and password
+        users_data = []
+        for i in range(1, total_users + 1):
+            username = f"player{i}"
+            email = f"player{i}@test.com"
 
-            # Batch insert
+            users_data.append({"name": username, "email": email})
+
+        # Insert users one by one to handle duplicates gracefully
+        added_count = 0
+        skipped_count = 0
+
+        for user_data in users_data:
             try:
-                from sqlalchemy import insert
-                from src.user_service.models.user import User
+                # Check if user already exists by email
+                from sqlalchemy import select
 
-                stmt = insert(User)
-                db.execute(stmt, users_data)
-                db.commit()
+                stmt = select(User).where(User.email == user_data["email"])
+                existing = db.execute(stmt).scalar_one_or_none()
 
-                print(f"[SUCCESS] Added {batch_end} users...")
+                if existing:
+                    print(f"[SKIP] User {user_data['email']} already exists")
+                    skipped_count += 1
+                    continue
 
+                # Create user using repository method (which handles password hashing)
+                await user_repo.create(
+                    name=user_data["name"],
+                    email=user_data["email"],
+                    password="test123",  # Will be hashed by create method
+                )
+                added_count += 1
+                print(
+                    f"[SUCCESS] Added user: {user_data['name']} ({user_data['email']})"
+                )
+
+            except IntegrityError:
+                print(
+                    f"[SKIP] User {user_data['email']} already exists (integrity error)"
+                )
+                db.rollback()
+                skipped_count += 1
+                continue
             except Exception as e:
-                print(f"[ERROR] Batch insert failed: {e}")
+                print(f"[ERROR] Failed to add user {user_data['email']}: {e}")
                 db.rollback()
                 continue
 
-        print("[SUCCESS] Successfully added 20,000 test users!")
+        print(
+            f"\n[SUMMARY] Successfully added {added_count} users, skipped {skipped_count} existing users"
+        )
+        print("[INFO] All users have password: test123")
+        print("[INFO] Users: player1@test.com through player10@test.com")
 
     except Exception as e:
         print(f"[ERROR] Error adding users: {e}")
+        import traceback
+
+        traceback.print_exc()
     finally:
         db.close()
 

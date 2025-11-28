@@ -18,6 +18,7 @@ from fastapi import (
     status,
 )
 from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from time import time
 from PIL import Image, UnidentifiedImageError
 from jose import jwt, JWTError
@@ -38,13 +39,17 @@ from .models.user import (
     UserResponseSchema,
     PaginatedUsersResponse,
     get_user_repository,
-    verify_password
+    verify_password,
 )
 from .models.friendship_routes import router as friendship_router
 from event_service.models.event_routes import router as event_router
 from analytics.routes.analytics_routes import router as analytics_router
 from .models.friendship import FriendshipRepository, get_friendship_repository
 from game_service.routes import lobby_router
+from game_service.routes.clue_routes import router as clue_router
+from game_service.routes.vote_routes import router as vote_router
+from game_service.routes.chat_routes import router as chat_router
+from game_service.routes.leaderboard_routes import router as leaderboard_router
 from game_service.websocket import lobby_ws_router, game_ws_router
 
 logger = logging.getLogger("uvicorn.error")
@@ -472,19 +477,36 @@ async def create_auth_token(
     user_repo: UserRepository = Depends(get_user_repository),
 ):
     name = payload.get("name")
+    email = payload.get("email")
     password = payload.get("password")
     expiry_str = payload.get("expiry")
 
-    user = await user_repo.get_by_name(name)
+    # Support both name and email login
+    user = None
+    if email:
+        # Try to find user by email
+        from sqlalchemy import select
+        from .models.user import User
+
+        stmt = select(User).where(User.email == email)
+        user = user_repo.session.scalar(stmt)
+    elif name:
+        user = await user_repo.get_by_name(name)
+
     if not user or not verify_password(password, user.password):
         raise HTTPException(401, "Invalid credentials")
 
-    try:
-        expiry = datetime.strptime(expiry_str, "%Y-%m-%d %H:%M:%S")
-        # Assume UTC timezone if not specified
-        expiry = expiry.replace(tzinfo=timezone.utc)
-    except ValueError:
-        raise HTTPException(400, "Invalid datetime format (YYYY-MM-DD HH:MM:SS)")
+    # Handle expiry - if not provided, default to 1 hour
+    if expiry_str:
+        try:
+            expiry = datetime.strptime(expiry_str, "%Y-%m-%d %H:%M:%S")
+            # Assume UTC timezone if not specified
+            expiry = expiry.replace(tzinfo=timezone.utc)
+        except ValueError:
+            raise HTTPException(400, "Invalid datetime format (YYYY-MM-DD HH:MM:SS)")
+    else:
+        # Default to 1 hour from now
+        expiry = datetime.now(timezone.utc) + timedelta(hours=1)
 
     # Enforce max duration 1 hour
     max_expiry = datetime.now(timezone.utc) + timedelta(hours=1)
@@ -493,14 +515,15 @@ async def create_auth_token(
 
     # Convert datetime to Unix timestamp for JWT exp claim
     expiry_timestamp = int(expiry.timestamp())
-    payload = {"sub": str(user.id), "exp": expiry_timestamp}
+    jwt_payload = {"sub": str(user.id), "exp": expiry_timestamp}
 
-    token = jwt.encode(payload, PRIVATE_KEY, algorithm="RS256")
+    token = jwt.encode(jwt_payload, PRIVATE_KEY, algorithm="RS256")
 
     # Invalidate previous token and save new one
     await user_repo.update_jwt(user.id, token)
 
-    return {"jwt": token}
+    return {"jwt": token, "token": token, "user_id": user.id, "id": user.id}
+
 
 @app.delete("/v2/authentications/")
 async def delete_auth_token(
@@ -544,6 +567,10 @@ app.include_router(analytics_router)
 
 # Include game service routes
 app.include_router(lobby_router)
+app.include_router(clue_router)
+app.include_router(vote_router)
+app.include_router(chat_router)
+app.include_router(leaderboard_router)
 
 # Include WebSocket routes
 app.include_router(lobby_ws_router)
@@ -754,6 +781,7 @@ if not os.path.exists(PRIVATE_KEY_PATH):
             )
         )
 
+
 @app.get("/v2/authentications/discord/login")
 async def discord_login():
     """
@@ -762,45 +790,68 @@ async def discord_login():
 
     if not DISCORD_CLIENT_ID or not DISCORD_REDIRECT_URI:
         # Misconfigured backend – missing env vars
-        raise HTTPException(status_code=500, detail="Discord OAuth is not configured on the server.")
-    
-    params = {"client_id": DISCORD_CLIENT_ID, "response_type": "code", "redirect_uri": DISCORD_REDIRECT_URI, "scope": "identify email"}
+        raise HTTPException(
+            status_code=500, detail="Discord OAuth is not configured on the server."
+        )
+
+    params = {
+        "client_id": DISCORD_CLIENT_ID,
+        "response_type": "code",
+        "redirect_uri": DISCORD_REDIRECT_URI,
+        "scope": "identify email",
+    }
     # optional: "state": <csrf_token>
 
     url = f"{DISCORD_OAUTH_AUTHORIZE_URL}?{urlencode(params)}"
 
     return RedirectResponse(url)
 
+
 @app.get("/v2/authentications/discord/callback")
-async def discord_callback(code: str, user_repo: UserRepository = Depends(get_user_repository)):
+async def discord_callback(
+    code: str, user_repo: UserRepository = Depends(get_user_repository)
+):
+    """OAuth callback for Discord login. Discord redirects the user here with a `code` query parameter.
+    1) Exchange code for access token, 2) use token to fetch profile, 3) find/create local user, 4) issue a JWT"""
 
-    '''OAuth callback for Discord login. Discord redirects the user here with a `code` query parameter.
-        1) Exchange code for access token, 2) use token to fetch profile, 3) find/create local user, 4) issue a JWT'''
-    
     if not (DISCORD_CLIENT_ID and DISCORD_CLIENT_SECRET and DISCORD_REDIRECT_URI):
-        raise HTTPException(status_code=500, detail="Discord OAuth is not configured on the server.")
+        raise HTTPException(
+            status_code=500, detail="Discord OAuth is not configured on the server."
+        )
 
-    token_data = {"client_id": DISCORD_CLIENT_ID, "client_secret": DISCORD_CLIENT_SECRET, "grant_type": "authorization_code", "code": code, "redirect_uri": DISCORD_REDIRECT_URI}
+    token_data = {
+        "client_id": DISCORD_CLIENT_ID,
+        "client_secret": DISCORD_CLIENT_SECRET,
+        "grant_type": "authorization_code",
+        "code": code,
+        "redirect_uri": DISCORD_REDIRECT_URI,
+    }
 
     async with httpx.AsyncClient() as client:
         token_resp = await client.post(DISCORD_OAUTH_TOKEN_URL, data=token_data)
 
     # Something went wrong on the token exchange
     if token_resp.status_code != 200:
-        raise HTTPException(status_code=400, detail="Failed to obtain access token from Discord.")
-    
+        raise HTTPException(
+            status_code=400, detail="Failed to obtain access token from Discord."
+        )
+
     token_json = token_resp.json()
     access_token = token_json.get("access_token")
     if not access_token:
-        raise HTTPException(status_code=400, detail="Discord did not return an access token.")
-    
+        raise HTTPException(
+            status_code=400, detail="Discord did not return an access token."
+        )
+
     headers = {"Authorization": f"Bearer {access_token}"}
     async with httpx.AsyncClient() as client:
-        me_resp = await client.get(DISCORD_API_ME_URL, headers=headers)    
+        me_resp = await client.get(DISCORD_API_ME_URL, headers=headers)
 
     if me_resp.status_code != 200:
-        raise HTTPException(status_code=400, detail="Failed to fetch user profile from Discord.")
-    
+        raise HTTPException(
+            status_code=400, detail="Failed to fetch user profile from Discord."
+        )
+
     me = me_resp.json()
     discord_id = me["id"]
     discord_username = me["username"]
@@ -808,7 +859,9 @@ async def discord_callback(code: str, user_repo: UserRepository = Depends(get_us
 
     existing_user = await user_repo.get_by_discord_id(discord_id)
     if existing_user is None:
-        user = await user_repo.create_from_discord(discord_id=discord_id, username=discord_username, email=discord_email)
+        user = await user_repo.create_from_discord(
+            discord_id=discord_id, username=discord_username, email=discord_email
+        )
     else:
         user = existing_user
 
@@ -819,25 +872,35 @@ async def discord_callback(code: str, user_repo: UserRepository = Depends(get_us
     payload = {"sub": str(user.id), "exp": expiry_timestamp}
     token = jwt.encode(payload, PRIVATE_KEY, algorithm="RS256")
 
-    await user_repo.update_jwt(user.id, token) # Store current JWT in the DB
+    await user_repo.update_jwt(user.id, token)  # Store current JWT in the DB
 
     return {"jwt": token, "user": UserSchema.from_db_model(user)}
 
-async def get_current_user_jwt(authorization: Optional[str] = Header(None), user_repo: UserRepository = Depends(get_user_repository)) -> User:
+
+async def get_current_user_jwt(
+    authorization: Optional[str] = Header(None),
+    user_repo: UserRepository = Depends(get_user_repository),
+) -> User:
     """Authenticate user using a Bearer JWT instead of Basic auth."""
     if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required", headers={"WWW-Authenticate": "Bearer"})
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
     token = authorization.split(" ", 1)[1]
 
     user = await verify_jwt(token, user_repo)
     if not user:
-        raise HTTPException( status_code=status.HTTP_401_UNAUTHORIZED,
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     return user
+
 
 with open(PRIVATE_KEY_PATH, "rb") as f:
     PRIVATE_KEY = f.read()
@@ -845,3 +908,62 @@ with open(PUBLIC_KEY_PATH, "rb") as f:
     PUBLIC_KEY = f.read()
 
 app.include_router(analytics_router)
+
+# Mount static files for frontend UI
+frontend_path = os.path.join(os.path.dirname(__file__), "..", "..", "frontend")
+if os.path.exists(frontend_path):
+    # Serve JS files from /js
+    js_path = os.path.join(frontend_path, "js")
+    if os.path.exists(js_path):
+        app.mount("/js", StaticFiles(directory=js_path), name="js")
+
+    # Serve CSS files from /css
+    css_path = os.path.join(frontend_path, "css")
+    if os.path.exists(css_path):
+        app.mount("/css", StaticFiles(directory=css_path), name="css")
+
+    # Serve shared files (if exists) from /shared
+    shared_path = os.path.join(frontend_path, "shared")
+    if os.path.exists(shared_path):
+        app.mount("/shared", StaticFiles(directory=shared_path), name="shared")
+
+    # Serve pages directory for relative paths
+    pages_path = os.path.join(frontend_path, "pages")
+    pages_static_path = os.path.join(frontend_path, "pages")
+    if os.path.exists(pages_static_path):
+        app.mount("/pages", StaticFiles(directory=pages_static_path), name="pages")
+
+    # Serve HTML pages
+    if os.path.exists(pages_path):
+
+        @app.get("/", response_class=FileResponse)
+        async def read_root():
+            return FileResponse(os.path.join(pages_path, "home.html"))
+
+        @app.get("/login", response_class=FileResponse)
+        async def read_login():
+            return FileResponse(os.path.join(pages_path, "login.html"))
+
+        @app.get("/home", response_class=FileResponse)
+        async def read_home():
+            return FileResponse(os.path.join(pages_path, "home.html"))
+
+        @app.get("/lobby", response_class=FileResponse)
+        async def read_lobby():
+            return FileResponse(os.path.join(pages_path, "lobby.html"))
+
+        @app.get("/game", response_class=FileResponse)
+        async def read_game():
+            return FileResponse(os.path.join(pages_path, "game.html"))
+
+        @app.get("/vote", response_class=FileResponse)
+        async def read_vote():
+            return FileResponse(os.path.join(pages_path, "vote.html"))
+
+        @app.get("/results", response_class=FileResponse)
+        async def read_results():
+            return FileResponse(os.path.join(pages_path, "results.html"))
+
+        @app.get("/leaderboard", response_class=FileResponse)
+        async def read_leaderboard():
+            return FileResponse(os.path.join(pages_path, "leaderboard.html"))

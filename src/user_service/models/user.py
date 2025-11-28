@@ -36,7 +36,9 @@ class User(Base):
     email: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
     password: Mapped[str] = mapped_column(String, nullable=False)
     current_jwt: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    discord_id: Mapped[Optional[str]] = mapped_column(String, unique=True, index=True, nullable=True)
+    discord_id: Mapped[Optional[str]] = mapped_column(
+        String, unique=True, index=True, nullable=True
+    )
 
 
 class UserRepository:
@@ -130,20 +132,22 @@ class UserRepository:
         """Get user by id"""
         user = self.session.scalar(select(User).where(User.id == id))
         return user
-    
+
     async def update_jwt(self, user_id: int, token: str | None):
         "Store or clear the current JWT for a user"
         user = await self.get_by_id(user_id)
         if user:
             user.curernt_jwt = token
             self.session.commit()
-    
+
     async def get_by_discord_id(self, discord_id: str) -> User:
         """Get user by name"""
-        user = self.session.scalar(select(User).where(User.discord_id == discord_id)) 
+        user = self.session.scalar(select(User).where(User.discord_id == discord_id))
         return user
 
-    async def create_from_discord(self, discord_id: str, username: str, email: str | None = None) -> User:
+    async def create_from_discord(
+        self, discord_id: str, username: str, email: str | None = None
+    ) -> User:
         """
         Create a user based on Discord account info.
         Discord users won't log in with a password directly, so we can store a placeholder hashed password.
@@ -152,7 +156,12 @@ class UserRepository:
             resolved_email = email or f"{discord_id}@discord.local"
             placeholder_password = hash_password("DISCORD_USER")
 
-            new_user = User(name=username, email=resolved_email, password=placeholder_password, discord_id=discord_id)
+            new_user = User(
+                name=username,
+                email=resolved_email,
+                password=placeholder_password,
+                discord_id=discord_id,
+            )
             self.session.add(new_user)
             self.session.commit()
             self.session.refresh(new_user)
@@ -160,6 +169,7 @@ class UserRepository:
             return new_user
         except IntegrityError:
             self.session.rollback()
+
 
 def get_user_repository(db: Session = Depends(get_db)) -> UserRepository:
     return UserRepository(db)
