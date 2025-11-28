@@ -68,6 +68,8 @@ class LobbyService:
         # Check if user is already in lobby
         existing = await self.lobby_member_repo.get_member(lobby_id, user_id)
         if existing:
+            # User is already a member, return True to allow re-joining
+            # This handles the case where user refreshes page or reconnects
             return True  # Already a member
 
         # Check if lobby is full
@@ -90,10 +92,8 @@ class LobbyService:
             lobby_id,
         )
 
-        # Check if we should auto-start the game
-        new_count = await self.lobby_member_repo.count_members(lobby_id)
-        if new_count == self.MAX_PLAYERS:
-            await self._auto_start_game(lobby_id)
+        # No auto-start - host must manually start the game
+        # Removed auto-start logic to allow host control
 
         return True
 

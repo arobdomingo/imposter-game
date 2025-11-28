@@ -128,43 +128,10 @@
       <!-- JS will populate -->
     </ul>
 
-    <button id="playAgainBtn" onclick="window.location.href='home.html'">Play Again</button>
+    <button id="playAgainBtn" onclick="window.location.href='/home'">Play Again</button>
   </div>
 
-  <script>
-    const players = ['John', 'Alice', 'Sara', 'Mike'];
-    const realImposter = 'Sara';
-
-    const votes = [
-      { voter: 'John', votedFor: 'Alice' },
-      { voter: 'Alice', votedFor: 'Sara' },
-      { voter: 'Sara', votedFor: 'John' },
-      { voter: 'Mike', votedFor: 'Alice' }
-    ];
-
-    const scores = {};
-    players.forEach(p => scores[p] = 0);
-
-    votes.forEach(v => {
-      if (v.votedFor === realImposter) {
-        scores[v.voter] += 1;
-      } else {
-        scores[realImposter] += 1;
-      }
-    });
-
-    const sortedPlayers = [...players].sort((a,b) => scores[b] - scores[a]);
-
-    const leaderboardEl = document.getElementById('leaderboardList');
-
-    sortedPlayers.forEach((p, idx) => {
-      const li = document.createElement('li');
-      if(idx === 0) li.classList.add('top'); // highlight 1st place
-      li.innerHTML = `<span class="rank">${idx === 0 ? '🥇' : idx+1}</span>
-                      <span class="name">@${p}</span>
-                      <span class="score">${scores[p]} pts</span>`;
-      leaderboardEl.appendChild(li);
-    });
-  </script>
+  <script src="/js/api.js"></script>
+  <script src="/js/leaderboard.js"></script>
 </body>
 </html>

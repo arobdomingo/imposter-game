@@ -3,10 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <title>Home | Imposter Game</title>
-  <link rel="stylesheet" href="../shared/reset.css" />
-  <link rel="stylesheet" href="../shared/tokens.css" />
-  <link rel="stylesheet" href="styles.css" />
-  <script defer src="../js/app.js"></script>
+  <link rel="stylesheet" href="/shared/reset.css" />
+  <link rel="stylesheet" href="/shared/tokens.css" />
+  <link rel="stylesheet" href="/pages/styles.css" />
+  <script src="/js/api.js"></script>
+  <script defer src="/js/home.js"></script>
+  <script defer src="/js/app.js"></script>
 
   <!-- Page-specific home styles -->
   <style>
@@ -107,6 +109,8 @@
     <button class="btn btn-secondary" onclick="joinLobby()">Join Lobby 🏃‍♂️</button>
     <input type="text" id="lobbyCode" class="lobby-code" placeholder="Enter lobby code" />
 
+    <button class="btn btn-secondary" onclick="window.location.href='/leaderboard'" style="margin-top: 12px;">View Leaderboard 🏆</button>
+
     <div class="notice" id="notice"></div>
   </main>
 
@@ -126,7 +130,7 @@
       noticeEl.textContent = "Creating lobby...";
       noticeEl.style.display = 'block';
       setTimeout(() => {
-        window.location.href = "lobby.html";
+        window.location.href = "/lobby";
       }, 600);
     }
 
@@ -139,7 +143,7 @@
       noticeEl.textContent = "Joining lobby...";
       noticeEl.style.display = 'block';
       setTimeout(() => {
-        window.location.href = "lobby.html";
+        window.location.href = "/lobby";
       }, 600);
     }
   </script>

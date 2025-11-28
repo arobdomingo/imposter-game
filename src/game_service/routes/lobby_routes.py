@@ -65,7 +65,9 @@ async def create_lobby(
 async def join_lobby(
     lobby_id: int,
     data: LobbyJoinSchema,
+    lobby_repo: LobbyRepository = Depends(get_lobby_repository),
     lobby_service: LobbyService = Depends(get_lobby_service),
+    lobby_member_repo: LobbyMemberRepository = Depends(get_lobby_member_repository),
     user_repo: UserRepository = Depends(get_user_repository),
 ):
     """Join an existing lobby by lobby ID."""
@@ -79,9 +81,28 @@ async def join_lobby(
 
     success = await lobby_service.join_lobby(lobby_id, data.user_id)
     if not success:
+        # Get more specific error message
+        lobby = await lobby_repo.get_by_id(lobby_id)
+        if not lobby:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Lobby not found",
+            )
+        if lobby.status != "waiting":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot join lobby (lobby is already playing or finished)",
+            )
+        # Check if lobby is full
+        count = await lobby_member_repo.count_members(lobby_id)
+        if count >= 4:  # MAX_PLAYERS
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot join lobby (lobby is full)",
+            )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot join lobby (lobby full, already playing, or not found)",
+            detail="Cannot join lobby (unknown error)",
         )
 
     return {"message": "Successfully joined lobby"}
@@ -93,6 +114,7 @@ async def join_lobby_by_code(
     data: LobbyJoinSchema,
     lobby_repo: LobbyRepository = Depends(get_lobby_repository),
     lobby_service: LobbyService = Depends(get_lobby_service),
+    lobby_member_repo: LobbyMemberRepository = Depends(get_lobby_member_repository),
     user_repo: UserRepository = Depends(get_user_repository),
 ):
     """Join an existing lobby by lobby code."""
@@ -114,9 +136,22 @@ async def join_lobby_by_code(
 
     success = await lobby_service.join_lobby(lobby.id, data.user_id)
     if not success:
+        # Get more specific error message
+        if lobby.status != "waiting":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot join lobby (lobby is already playing or finished)",
+            )
+        # Check if lobby is full
+        count = await lobby_member_repo.count_members(lobby.id)
+        if count >= 4:  # MAX_PLAYERS
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot join lobby (lobby is full)",
+            )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot join lobby (lobby full or already playing)",
+            detail="Cannot join lobby (unknown error)",
         )
 
     return {"message": "Successfully joined lobby", "lobby_id": lobby.id}
@@ -145,6 +180,7 @@ async def get_lobby_state(
     lobby_repo: LobbyRepository = Depends(get_lobby_repository),
     lobby_member_repo: LobbyMemberRepository = Depends(get_lobby_member_repository),
     user_repo: UserRepository = Depends(get_user_repository),
+    game_repo: GameRepository = Depends(get_game_repository),
 ):
     """Get the current state of a lobby."""
     lobby = await lobby_repo.get_by_id(lobby_id)
@@ -157,12 +193,30 @@ async def get_lobby_state(
     members = await lobby_member_repo.list_members(lobby_id)
     player_schemas = []
     for member in members:
+        # Try to get user name, but don't fail if user doesn't exist
+        user_name = None
+        try:
+            user = await user_repo.get_by_id(member.user_id)
+            if user:
+                user_name = user.name
+        except Exception:
+            # User not found or other error - continue without name
+            pass
+
         player_schemas.append(
             LobbyPlayerSchema(
                 user_id=member.user_id,
                 seat_no=member.seat_no or 0,
+                user_name=user_name,
             )
         )
+
+    # If lobby is playing, get the active game ID
+    active_game_id = None
+    if lobby.status == "playing":
+        active_game = await game_repo.get_active_by_lobby(lobby.id)
+        if active_game:
+            active_game_id = active_game.id
 
     return LobbyStateSchema(
         lobby=LobbyResponseSchema(
@@ -173,6 +227,7 @@ async def get_lobby_state(
             created_at=lobby.created_at,
         ),
         players=player_schemas,
+        active_game_id=active_game_id,
     )
 
 
@@ -182,6 +237,7 @@ async def get_lobby_by_code(
     lobby_repo: LobbyRepository = Depends(get_lobby_repository),
     lobby_member_repo: LobbyMemberRepository = Depends(get_lobby_member_repository),
     user_repo: UserRepository = Depends(get_user_repository),
+    game_repo: GameRepository = Depends(get_game_repository),
 ):
     """Get lobby state by lobby code."""
     lobby = await lobby_repo.get_by_code(code)
@@ -194,12 +250,30 @@ async def get_lobby_by_code(
     members = await lobby_member_repo.list_members(lobby.id)
     player_schemas = []
     for member in members:
+        # Try to get user name, but don't fail if user doesn't exist
+        user_name = None
+        try:
+            user = await user_repo.get_by_id(member.user_id)
+            if user:
+                user_name = user.name
+        except Exception:
+            # User not found or other error - continue without name
+            pass
+
         player_schemas.append(
             LobbyPlayerSchema(
                 user_id=member.user_id,
                 seat_no=member.seat_no or 0,
+                user_name=user_name,
             )
         )
+
+    # If lobby is playing, get the active game ID
+    active_game_id = None
+    if lobby.status == "playing":
+        active_game = await game_repo.get_active_by_lobby(lobby.id)
+        if active_game:
+            active_game_id = active_game.id
 
     return LobbyStateSchema(
         lobby=LobbyResponseSchema(
@@ -210,7 +284,9 @@ async def get_lobby_by_code(
             created_at=lobby.created_at,
         ),
         players=player_schemas,
+        active_game_id=active_game_id,
     )
+
 
 @router.post("/{lobby_id}/start", status_code=200)
 async def start_game(
@@ -218,6 +294,7 @@ async def start_game(
     request: dict,
     lobby_repo: LobbyRepository = Depends(get_lobby_repository),
     lobby_member_repo: LobbyMemberRepository = Depends(get_lobby_member_repository),
+    game_repo: GameRepository = Depends(get_game_repository),
     game_engine: GameEngine = Depends(get_game_engine),
 ):
     """
@@ -238,6 +315,17 @@ async def start_game(
     if lobby.host_id != host_id:
         raise HTTPException(403, "Only the host can start the game")
 
+    # If lobby is playing, ensure the game is finished before starting a new one
+    if lobby.status == "playing":
+        active_game = await game_repo.get_active_by_lobby(lobby_id)
+        if active_game and active_game.status != "finished":
+            raise HTTPException(
+                400,
+                "Current game is not finished yet. Please wait for the game to end.",
+            )
+        # Update lobby status to waiting if game is finished
+        await lobby_repo.update_status(lobby_id, "waiting")
+
     # Get lobby members
     members = await lobby_member_repo.list_members(lobby_id)
     user_ids = [m.user_id for m in members]
@@ -254,8 +342,10 @@ async def start_game(
 
     return {"game_id": game_id}
 
+
 # to be added to seperate files for organization purposes
 # future names provided above current names (e.g. current: "/{lobby_id}/game", incoming change to: "v2/games/{game_id}")
+
 
 # @router.get("v2/games/{game_id}", status_code=200)
 @router.get("/{lobby_id}/game", status_code=200)
@@ -271,17 +361,33 @@ async def get_game_state(
     if not lobby:
         raise HTTPException(404, "Lobby not found")
 
+    # Get the most recent game (including finished ones)
+    # First try active game, then try to get the latest game
     game = await game_repo.get_active_by_lobby(lobby_id)
     if not game:
-        raise HTTPException(404, "No game started yet")
+        # If no active game, try to get the latest game (including finished)
+        from sqlalchemy import select, desc
+        from game_service.models.game import Game
+
+        stmt = (
+            select(Game)
+            .where(Game.lobby_id == lobby_id)
+            .order_by(desc(Game.id))
+            .limit(1)
+        )
+        game = game_repo.session.scalar(stmt)
+        if not game:
+            raise HTTPException(404, "No game started yet")
 
     players = await player_repo.list_by_game(game.id)
 
     return {
         "game_id": game.id,
         "mode": game.mode,
+        "status": game.status,  # Include game status
         "players": [
             {
+                "id": p.id,  # Include player_id for voting
                 "user_id": p.user_id,
                 "seat_no": p.seat_no,
                 # Do NOT expose impostor identity
@@ -289,6 +395,7 @@ async def get_game_state(
             for p in players
         ],
     }
+
 
 # @router.get("/v2/games/{game_id}/role", status_code=200)
 @router.get("/{game_id}/role")
@@ -305,9 +412,12 @@ async def get_my_role(
 
     return {
         "user_id": user_id,
+        "player_id": player.id,  # Include player_id for clue submission
         "is_imposter": player.is_imposter,
         "word": player.word,
+        "seat_no": player.seat_no,
     }
+
 
 # @router.get("/v2/games/{game_id}/end", status_code=200)
 @router.post("/{lobby_id}/game/end", status_code=200)
@@ -331,7 +441,7 @@ async def end_game(
     lobby = await lobby_repo.get_by_id(lobby_id)
     if not lobby:
         raise HTTPException(status_code=404, detail="Lobby not found")
-    
+
     # 2) Check that caller is the host
     if lobby.host_id != host_id:
         raise HTTPException(status_code=403, detail="Only the host can end the game")
@@ -340,7 +450,7 @@ async def end_game(
     game = await game_repo.get_active_by_lobby(lobby_id)
     if not game:
         raise HTTPException(status_code=404, detail="No active game for this lobby")
-    
+
     await game_repo.update_status(game.id, status="finished")
     await lobby_repo.update_status(lobby_id, status="waiting")
 

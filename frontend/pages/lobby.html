@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>Lobby | Imposter Game</title>
-  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="/css/style.css">
   <style>
     body {
       background: var(--bg-clever);
@@ -150,7 +150,8 @@
     <h1>Waiting Room: Assemble Your Crew! 🕵️‍♂️</h1>
 
     <div class="lobby-code-section">
-      <div id="lobbyCodeBox">AB12CD</div>
+      <div id="lobbyCode">Loading...</div>
+      <div id="lobbyCodeBox" style="display: none;">AB12CD</div>
       <button id="copyCodeBtn" class="small-btn">Copy</button>
     </div>
 
@@ -163,48 +164,29 @@
   </div>
 
   <script>
-    const copyBtn = document.getElementById('copyCodeBtn');
-    const lobbyCodeBox = document.getElementById('lobbyCodeBox');
-    const playerListEl = document.getElementById('playerList');
-    const statusMsg = document.getElementById('statusMsg');
-    const startBtn = document.getElementById('startGameBtn');
-
     // Copy lobby code to clipboard
-    copyBtn.addEventListener('click', () => {
-      navigator.clipboard.writeText(lobbyCodeBox.textContent)
-        .then(() => {
-          copyBtn.textContent = 'Copied! ✅';
-          setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
-        })
-        .catch(err => console.error('Failed to copy:', err));
-    });
-
-    // Populate player list
-    const players = ['John', 'Alice', 'Sara', 'Mike'];
-    players.forEach(p => {
-      const li = document.createElement('li');
-      li.textContent = p;
-      playerListEl.appendChild(li);
-    });
-
-    // Update start button and status message
-    if (players.length >= 4) { // Keep original logic
-      startBtn.disabled = false;
-      statusMsg.textContent = ''; // Hide waiting message
-    } else {
-      startBtn.disabled = true;
-      statusMsg.textContent = 'Waiting for players...';
-    }
-
-    // Redirect to game.html when start button clicked
-    startBtn.addEventListener('click', () => {
-      statusMsg.textContent = 'Starting game... 🔥';
-      setTimeout(() => {
-        window.location.href = "game.html";
-      }, 400);
+    document.addEventListener('DOMContentLoaded', () => {
+      const copyBtn = document.getElementById('copyCodeBtn');
+      const lobbyCodeEl = document.getElementById('lobbyCode');
+      const lobbyCodeBox = document.getElementById('lobbyCodeBox');
+      
+      if (copyBtn) {
+        copyBtn.addEventListener('click', () => {
+          const code = lobbyCodeEl?.textContent || lobbyCodeBox?.textContent;
+          if (code) {
+            navigator.clipboard.writeText(code)
+              .then(() => {
+                copyBtn.textContent = 'Copied! ✅';
+                setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
+              })
+              .catch(err => console.error('Failed to copy:', err));
+          }
+        });
+      }
     });
   </script>
 
-  <script src="../js/lobby.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/lobby.js"></script>
 </body>
 </html>

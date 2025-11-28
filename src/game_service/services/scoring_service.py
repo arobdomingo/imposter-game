@@ -29,6 +29,11 @@ class ScoringService:
                 for imp_id in impostor_ids:
                     score_map[str(imp_id)] += 1
 
+        # Update player scores in database (set the score for this round)
+        for player in players:
+            player_score = score_map.get(str(player.id), 0)
+            await self.player_repo.set_score(player.id, player_score)
+
         return ScoreResultSchema(
             game_id=game_id,
             impostor_ids=impostor_ids,

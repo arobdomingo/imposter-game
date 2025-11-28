@@ -41,6 +41,7 @@ addopts = [
 markers = [
     "asyncio: mark a test as running with asyncio",
 ]
+# pytest-asyncio configuration
 asyncio_mode = "auto"
 
 [dependency-groups]

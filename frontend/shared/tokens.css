@@ -1,0 +1,11 @@
+/* CSS Variables/Tokens */
+:root {
+  --bg-clever: #f0f4f8;
+  --bg-clue: #ffffff;
+  --border-card: #e0e0e0;
+  --text-muted: #666;
+  --accent-green: #28a745;
+  --btn-disabled-bg: #ccc;
+  --btn-disabled-text: #666;
+}
+

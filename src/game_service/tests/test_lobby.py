@@ -225,8 +225,8 @@ async def test_lobby_service_join_full_lobby(session, users):
 
 
 @pytest.mark.asyncio
-async def test_lobby_service_auto_start_game(session, users):
-    """Test that game auto-starts when lobby is full."""
+async def test_lobby_service_manual_start_game(session, users):
+    """Test that game does NOT auto-start when lobby is full. Host must manually start."""
     lobby_repo = LobbyRepository(session)
     member_repo = LobbyMemberRepository(session)
     game_repo = GameRepository(session)
@@ -261,12 +261,25 @@ async def test_lobby_service_auto_start_game(session, users):
     for i in range(1, min(4, len(users))):
         await lobby_service.join_lobby(lobby_id, users[i].id)
 
-    # Check if game was created
+    # Check that game was NOT automatically created
     game = await game_repo.get_active_by_lobby(lobby_id)
     if len(users) >= 4:
-        # Game should be created when 4th player joins
+        # Game should NOT be created when 4th player joins
+        assert game is None, "Game should not be created automatically"
+
+    # Host manually starts the game
+    if len(users) >= 4:
+        members = await member_repo.list_members(lobby_id)
+        user_ids = [
+            member.user_id for member in sorted(members, key=lambda m: m.seat_no or 0)
+        ]
+        game_id = await game_engine.start_game(lobby_id, user_ids, mode="aware")
+
+        # Verify game was created after manual start
+        game = await game_repo.get_active_by_lobby(lobby_id)
         assert game is not None
         assert game.lobby_id == lobby_id
+        assert game.id == game_id
         assert game.status == "waiting"  # Game starts in waiting status
         assert game.mode == "aware"
 

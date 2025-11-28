@@ -122,7 +122,7 @@ async function initVotingPage(currentPlayerName, onComplete) {
                     voter = await voteManager.submitVote(voter, p);
                     if (!voter) {
                         onComplete(voteManager.votes);
-                        window.location.href = '/pages/results.html'; // go to results
+                        window.location.href = '/results'; // go to results
                     } else {
                         renderOptions();
                     }
