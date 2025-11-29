@@ -172,3 +172,4 @@ if __name__ == "__main__":
     else:
         # Only delete test_user_* users (the 20,000 ones)
         asyncio.run(delete_test_users())
+

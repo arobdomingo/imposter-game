@@ -1,0 +1,93 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-and-lint:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python 3.13
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.13'
+        
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        version: "latest"
+        
+    - name: Install dependencies
+      run: |
+        uv sync --dev
+        
+    - name: Run ruff linting
+      run: |
+        uv run ruff check .
+        
+    - name: Run ruff format check
+      run: |
+        uv run ruff format --check .
+        
+    - name: Set up environment variables
+      run: |
+        echo "POSTGRES_HOST=localhost" >> $GITHUB_ENV
+        echo "POSTGRES_USER=user" >> $GITHUB_ENV
+        echo "POSTGRES_PASSWORD=password" >> $GITHUB_ENV
+        echo "POSTGRES_DB=user" >> $GITHUB_ENV
+        echo "AUTH_TTL_SECONDS=3600" >> $GITHUB_ENV
+        echo "PYTHONPATH=src" >> $GITHUB_ENV
+        echo "TESTING=1" >> $GITHUB_ENV
+        
+    - name: Start PostgreSQL service
+      run: |
+        docker run -d --name postgres-test \
+          -e POSTGRES_USER=user \
+          -e POSTGRES_PASSWORD=password \
+          -e POSTGRES_DB=user \
+          -p 5432:5432 \
+          postgres:15
+        sleep 10
+        
+    - name: Run database migrations
+      run: |
+        uv run alembic upgrade head
+        
+    - name: Start application
+      run: |
+        uv run uvicorn user_service.api:app --host 0.0.0.0 --port 8000 &
+        sleep 10
+        
+    - name: Wait for application to be ready
+      run: |
+        timeout 30 bash -c 'until curl -f http://localhost:8000/v2/analytics/health; do sleep 1; done'
+        
+    - name: Run all tests
+      run: |
+        uv run pytest src/ -v --cov=src --cov-report=xml --cov-report=term-missing
+        
+    - name: Run specific test suites
+      run: |
+        echo "Running User Service tests..."
+        uv run pytest src/user_service/test_api.py -v
+        
+        echo "Running Event Service tests..."
+        uv run pytest src/event_service/test_events.py -v
+        
+        echo "Running Analytics API tests..."
+        uv run pytest src/analytics/test_analytics_pytest.py -v
+        
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
