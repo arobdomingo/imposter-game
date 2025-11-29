@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Leaderboard | Imposter Game</title>
+  <link rel="stylesheet" href="../css/style.css?v=2.1">
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(135deg, #eef2f3, #e8faff);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+
+    .page-container {
+      background: #ffffff;
+      border-radius: 22px;
+      padding: 32px 40px;
+      box-shadow: 0 14px 28px rgba(0,0,0,0.18);
+      text-align: center;
+      max-width: 500px;
+      width: 90%;
+      animation: fadeIn 0.5s ease;
+    }
+
+    @keyframes fadeIn {
+      0% { opacity: 0; transform: translateY(20px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+
+    h1 {
+      font-size: 28px;
+      margin-bottom: 10px;
+      color: #333;
+    }
+
+    .congrats-line {
+      font-size: 16px;
+      color: #555;
+      margin-bottom: 20px;
+      font-weight: 500;
+    }
+
+    .leaderboard {
+      list-style: none;
+      padding: 0;
+      margin-top: 10px;
+    }
+
+    .leaderboard li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      border-radius: 12px;
+      margin: 6px 0;
+      background: #f4fbff;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+      font-weight: 600;
+      transition: transform 0.2s ease, background 0.2s ease;
+    }
+
+    .leaderboard li:hover {
+      transform: scale(1.02);
+      background: #e0f0ff;
+    }
+
+    .rank {
+      font-size: 20px;
+      width: 40px;
+      text-align: center;
+    }
+
+    .name {
+      color: #4b7bec;
+      font-weight: 700;
+    }
+
+    .score {
+      font-weight: 800;
+      color: #222;
+      min-width: 50px;
+      text-align: right;
+    }
+
+    .top {
+      background: #fff6d3;
+      border: 2px solid #ffe08a;
+      box-shadow: 0 4px 10px rgba(255,200,0,0.25);
+      font-size: 18px;
+      animation: popIn 0.5s ease forwards;
+    }
+
+    @keyframes popIn {
+      0% { opacity: 0; transform: scale(0.8); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+
+    #playAgainBtn {
+      margin-top: 20px;
+      padding: 14px 24px;
+      font-size: 18px;
+      border-radius: 12px;
+      border: none;
+      background-color: #4b7bec;
+      color: #fff;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 6px 16px rgba(75,123,236,0.3);
+      transition: transform 0.2s ease, background 0.2s ease;
+    }
+
+    #playAgainBtn:hover {
+      transform: scale(1.05);
+      background-color: #3867d6;
+    }
+  </style>
+</head>
+<body>
+  <div class="page-container">
+    <h1>🏆 Leaderboard</h1>
+    <p class="congrats-line">Hats off to our top sleuth! Who’s got the sharpest detective skills? 🕵️‍♂️</p>
+
+    <ul class="leaderboard" id="leaderboardList">
+      <!-- JS will populate -->
+    </ul>
+
+    <button id="playAgainBtn" onclick="window.location.href='/home'">Play Again</button>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/leaderboard.js"></script>
+</body>
+</html>

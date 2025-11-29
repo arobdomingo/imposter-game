@@ -1,0 +1,56 @@
+[project]
+name = "user_service"
+version = "0.0.1"
+authors = [
+  { name="your_name", email="your_computing_id@sfu.ca" },
+]
+description = "A small user service"
+readme = "README.md"
+requires-python = ">=3.13"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+license = "MIT"
+license-files = ["LICENSE"]
+dependencies = [
+    "alembic>=1.16.5",
+    "cryptography>=43.0.0",
+    "dotenv>=0.9.9",
+    "fastapi>=0.117.1",
+    "nicegui>=2.24.2",
+    "psycopg2-binary>=2.9.10",
+    "pydantic>=2.11.9",
+    "python-jose[cryptography]>=3.3.0",
+    "pytest-cov>=7.0.0",
+    "sqlalchemy>=2.0.43",
+    "pillow>=10.4.0",
+    "bcrypt>=4.0.0",
+    "requests>=2.31.0",
+    "httpx>=0.27.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+addopts = [
+    "--import-mode=importlib",
+]
+markers = [
+    "asyncio: mark a test as running with asyncio",
+]
+# pytest-asyncio configuration
+asyncio_mode = "auto"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.2",
+    "pytest-cov>=7.0.0",
+    "pytest-asyncio>=0.24.0",
+    "ruff>=0.13.2",
+]
+
+
+

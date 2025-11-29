@@ -1,0 +1,244 @@
+import asyncio
+from fastapi import Depends, APIRouter
+from nicegui import ui
+import logging
+from sqlalchemy.exc import IntegrityError
+
+from user_service.models.user import (
+    UserRepository,
+    UserResponseSchema,
+    get_user_repository,
+)
+
+from fastapi import FastAPI
+from analytics.routes.analytics_routes import router as analytics_router
+from game_service.routes.clue_routes import router as clue_router
+from game_service.routes.vote_routes import router as vote_router
+from game_service.routes.chat_routes import router as chat_router
+
+app = FastAPI(title="Imposter Admin API")
+
+app.include_router(clue_router)
+app.include_router(vote_router)
+app.include_router(chat_router)
+app.include_router(analytics_router)
+
+
+@app.get("/")
+async def root():
+    return {"status": "ok", "service": "admin"}
+
+
+# Admin password protection
+ADMIN_PASSWORD = "admin123"
+
+logger = logging.getLogger("uvicorn.error")
+router = APIRouter()
+
+# Global state for pagination
+current_page = 1
+current_page_size = 50
+authenticated = False
+
+
+# ------------------ UI COMPONENTS ------------------
+@ui.refreshable
+async def user_list(user_repo: UserRepository) -> None:
+    global current_page, current_page_size
+    # Get paginated users
+    user_models, total_count = await user_repo.get_paginated(
+        current_page, current_page_size
+    )
+    users = [
+        UserResponseSchema.from_db_model(model).model_dump() for model in user_models
+    ]
+
+    # Calculate pagination info
+    total_pages = (
+        (total_count + current_page_size - 1) // current_page_size
+        if total_count > 0
+        else 0
+    )
+
+    ui.label(f"Users (Page {current_page} of {total_pages}, Total: {total_count})")
+
+    selected = []
+
+    async def delete():
+        try:
+            deleted_users = []
+            for user in selected:
+                result = await user_repo.delete(user["id"])
+                if result.rowcount > 0:
+                    deleted_users.append(user["name"])
+                    ui.notify(f"Deleted user '{user['name']}'", type="positive")
+                else:
+                    ui.notify(
+                        f"Unable to delete user '{user['name']}'", type="negative"
+                    )
+
+            # Refresh the user list to show the updates
+            user_list.refresh()
+
+            # Clear selected state
+            selected.clear()
+            button.disable()
+
+        except Exception as e:
+            ui.notify(f"Error deleting users: {str(e)}", type="negative")
+            user_list.refresh()
+            selected.clear()
+            button.disable()
+
+    button = ui.button(on_click=delete, icon="delete")
+
+    button.disable()
+
+    def toggle_delete_button(e):
+        selected.clear()
+        selected.extend(e.selection)
+        if len(selected) > 0:
+            button.enable()
+        else:
+            button.disable()
+
+    columns = [
+        {"name": "id", "label": "ID", "field": "id", "align": "left"},
+        {
+            "name": "name",
+            "label": "Name",
+            "field": "name",
+            "required": True,
+            "align": "left",
+        },
+        {"name": "email", "label": "Email", "field": "email", "align": "left"},
+    ]
+    table = ui.table(
+        columns=columns, rows=users, row_key="id", on_select=toggle_delete_button
+    )
+    table.set_selection("multiple")
+
+    # Pagination controls
+    with ui.row().classes("w-full justify-center items-center gap-2 mt-4"):
+        # Page size selector
+        page_size_select = ui.select(
+            options=[10, 25, 50, 100], value=current_page_size, label="Page Size"
+        ).classes("w-24")
+
+        # Previous page button
+        prev_button = ui.button("Previous", icon="chevron_left")
+        if current_page <= 1:
+            prev_button.disable()
+
+        # Page info
+        ui.label(f"Page {current_page} of {total_pages}")
+
+        # Page jump input
+        page_input = ui.input(
+            label="Go to page", placeholder=f"1-{total_pages}", value=str(current_page)
+        ).classes("w-20")
+
+        # Jump button
+        jump_button = ui.button("Go", icon="arrow_forward")
+
+        # Next page button
+        next_button = ui.button("Next", icon="chevron_right")
+        if current_page >= total_pages:
+            next_button.disable()
+
+        # Page navigation handlers
+        async def go_to_previous():
+            global current_page
+            if current_page > 1:
+                current_page -= 1
+                user_list.refresh()
+
+        async def go_to_next():
+            global current_page
+            if current_page < total_pages:
+                current_page += 1
+                user_list.refresh()
+
+        async def change_page_size():
+            global current_page, current_page_size
+            current_page = 1
+            current_page_size = page_size_select.value
+            user_list.refresh()
+
+        async def jump_to_page():
+            global current_page
+            try:
+                target_page = int(page_input.value)
+                if 1 <= target_page <= total_pages:
+                    current_page = target_page
+                    user_list.refresh()
+                else:
+                    ui.notify(
+                        f"Please enter a page number between 1 and {total_pages}",
+                        type="negative",
+                    )
+            except ValueError:
+                ui.notify("Please enter a valid page number", type="negative")
+
+        prev_button.on_click(go_to_previous)
+        next_button.on_click(go_to_next)
+        jump_button.on_click(jump_to_page)
+        page_size_select.on("update:model-value", change_page_size)
+
+
+async def show_admin_ui(user_repo: UserRepository, layout):
+    """Display the main admin interface after successful login"""
+    layout.clear()
+    with layout:
+
+        async def create() -> None:
+            try:
+                await user_repo.create(
+                    name=name.value, email=email.value, password=password.value
+                )
+                ui.notify(f"User: '{name.value}' created successfully", type="positive")
+                name.value = ""
+                email.value = ""
+                password.value = ""
+                user_list.refresh()
+            except IntegrityError:
+                ui.notify(f"User: '{name.value}' already exists", type="negative")
+                name.value = ""
+                email.value = ""
+                password.value = ""
+            except Exception as e:
+                ui.notify(f"Error creating user: {str(e)}", type="negative")
+                name.value = ""
+                email.value = ""
+                password.value = ""
+
+        with ui.row().classes("w-full items-center px-4"):
+            name = ui.input(label="Name")
+            email = ui.input(label="Email")
+            password = ui.input(label="Password")
+            ui.button(on_click=create, icon="add")
+        await user_list(user_repo)
+
+
+# ------------------ MAIN ADMIN PAGE ------------------
+@ui.page("/")
+async def index(user_repo: UserRepository = Depends(get_user_repository)):
+    """Admin entry point with password protection"""
+    layout = ui.column().classes("mx-auto")
+
+    with layout:
+        ui.label("Admin Login").classes("text-xl")
+        password_input = ui.input(label="Enter Admin Password", password=True)
+        login_button = ui.button("Login")
+
+    def try_login():
+        if password_input.value == ADMIN_PASSWORD:
+            ui.notify("Access granted", type="positive")
+            asyncio.create_task(show_admin_ui(user_repo, layout))
+        else:
+            ui.notify("Incorrect password", type="negative")
+
+    login_button.on("click", try_login)
+
+
+__all__ = ["router", "ui"]

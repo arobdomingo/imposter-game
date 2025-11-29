@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Voting Results</title>
+  <link rel="stylesheet" href="../css/style.css?v=2.1">
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(135deg, #eef2f3, #e8faff);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+
+    .page-container {
+      background: #ffffff;
+      border-radius: 22px;
+      padding: 32px 40px;
+      box-shadow: 0 14px 28px rgba(0,0,0,0.18);
+      text-align: center;
+      max-width: 500px;
+      width: 90%;
+      animation: fadeIn 0.5s ease;
+    }
+
+    @keyframes fadeIn {
+      0% { opacity: 0; transform: translateY(20px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+
+    h1 {
+      font-size: 28px;
+      margin-bottom: 20px;
+      color: #333;
+    }
+
+    .results {
+      list-style: none;
+      padding: 0;
+      margin-bottom: 20px;
+    }
+
+    .results li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 14px;
+      border-radius: 12px;
+      margin: 6px 0;
+      background: #f4fbff;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+      font-weight: 600;
+      transition: transform 0.2s ease, background 0.2s ease;
+    }
+
+    .results li:hover {
+      transform: scale(1.02);
+      background: #e0f0ff;
+    }
+
+    .name {
+      color: #4b7bec;
+    }
+
+    .votes {
+      font-weight: 700;
+      color: #222;
+    }
+
+    .quirky-line {
+      margin: 12px 0;
+      font-style: italic;
+      font-weight: 500;
+      color: #222;
+    }
+
+    .reveal {
+      margin-top: 24px;
+      padding: 20px;
+      border-radius: 16px;
+      background: #fff6d3;
+      border: 2px solid #ffe08a;
+      box-shadow: 0 4px 10px rgba(255,200,0,0.25);
+      animation: popIn 0.5s ease forwards;
+    }
+
+    .reveal p {
+      font-size: 18px;
+      font-weight: 600;
+      margin: 0;
+      color: #333;
+    }
+
+    .reveal h2 {
+      font-size: 32px;
+      margin-top: 8px;
+      color: #d93a3a;
+      font-weight: 800;
+      animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.1); opacity: 0.8; }
+    }
+
+    @keyframes popIn {
+      0% { opacity: 0; transform: scale(0.8); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+
+    .view-scores-btn {
+      margin-top: 20px;
+      padding: 14px 24px;
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+      background-color: #4b7bec;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: transform 0.2s ease, background 0.2s ease;
+    }
+
+    .view-scores-btn:hover {
+      transform: scale(1.05);
+      background-color: #3867d6;
+    }
+
+    /* Chat styles */
+    .chat-container {
+      margin-top: 20px;
+      border-top: 2px solid #ddd;
+      padding-top: 20px;
+    }
+
+    .chat-box {
+      max-height: 200px;
+      overflow-y: auto;
+      background: #f8f9fa;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 10px;
+      border: 1px solid #e0e0e0;
+    }
+
+    .chat-message {
+      margin-bottom: 8px;
+      padding: 6px 10px;
+      background: white;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+
+    .chat-message .sender {
+      font-weight: 600;
+      color: #4b7bec;
+      margin-right: 6px;
+    }
+
+    .chat-message .sender.imposter {
+      color: #d93a3a;
+    }
+
+    .chat-message .sender.imposter::after {
+      content: " 🎭";
+    }
+
+    .chat-message .time {
+      font-size: 11px;
+      color: #999;
+      margin-left: 6px;
+    }
+
+    .chat-input-container {
+      display: flex;
+      gap: 8px;
+    }
+
+    .chat-input {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+
+    .chat-send-btn {
+      padding: 10px 20px;
+      background-color: #4b7bec;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.2s ease;
+    }
+
+    .chat-send-btn:hover {
+      background-color: #3867d6;
+    }
+
+    .chat-send-btn:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body>
+  <div class="page-container">
+    <h1>The Accusation Board 🧩</h1>
+
+    <ul class="results" id="resultsList">
+      <!-- JS will populate votes -->
+    </ul>
+
+    <!-- Quirky congratulatory line -->
+    <p class="quirky-line">🕵️‍♀️ Sharp minds at work! Who’s the sneaky imposter? 🕵️‍♂️</p>
+
+    <div class="reveal">
+      <p>The imposter was…</p>
+      <h2 class="imposter" id="realImposter">@???</h2>
+    </div>
+
+    <!-- View Scores Button -->
+    <button class="view-scores-btn" onclick="window.location.href='/leaderboard'">
+      View Scores
+    </button>
+
+    <!-- Player Left Warning (Host only) -->
+    <div id="playerLeftWarning" style="display: none; margin-top: 12px; padding: 12px; background-color: #fff3cd; border: 2px solid #ffc107; border-radius: 12px; color: #856404;">
+      <!-- Warning message will be inserted here -->
+    </div>
+
+    <!-- Start Next Round Button (Host only) -->
+    <button id="startNextRoundBtn" class="view-scores-btn" style="display: none; background-color: #28a745; margin-top: 12px;">
+      Start Next Round 🎮
+    </button>
+
+    <!-- Player Left Warning (Host only) -->
+    <div id="playerLeftWarning" style="display: none; margin-top: 12px; padding: 12px; background-color: #fff3cd; border: 2px solid #ffc107; border-radius: 12px; color: #856404;">
+      <p style="margin: 0; font-weight: 600;">⚠️ Some players have left the lobby. You need at least 3 players to start a new round.</p>
+    </div>
+
+    <!-- Chat container -->
+    <div class="chat-container">
+      <h4 style="margin-bottom: 10px; color: #555;">💬 Post-Game Discussion</h4>
+      <div class="chat-box" id="chatBox"></div>
+      <div class="chat-input-container">
+        <input type="text" class="chat-input" id="chatInput" placeholder="Type your message..." maxlength="200">
+        <button class="chat-send-btn" id="chatSendBtn">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/results.js"></script>
+</body>
+</html>

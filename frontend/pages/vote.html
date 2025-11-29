@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Choose Your Suspect | Imposter Game</title>
+  <link rel="stylesheet" href="../css/style.css?v=2.1">
+  <style>
+    body {
+      background: var(--bg-clever);
+      font-family: 'Poppins', sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .page-container {
+      max-width: 480px;
+      width: 95%;
+      padding: 32px 28px;
+      background: linear-gradient(135deg, var(--bg-clue), var(--bg-clever));
+      border: 2px solid var(--border-card);
+      border-radius: 16px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+      text-align: center;
+      animation: fadeIn 0.5s ease;
+    }
+
+    @keyframes fadeIn {
+      0% { opacity: 0; transform: translateY(20px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+
+    h1 {
+      font-size: 26px;
+      margin-bottom: 16px;
+      color: #333;
+    }
+
+    #playerTurn {
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: #555;
+    }
+
+    .clue-box button {
+      padding: 14px;
+      font-size: 16px;
+      border-radius: 10px;
+      border: none;
+      background-color: #4b7bec;
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+      margin: 6px 0;
+      width: 100%;
+      transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .clue-box button:hover {
+      transform: scale(1.03);
+      background-color: #3867d6;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+
+    .timer-orange { color: darkorange; font-weight: bold; }
+    .timer-red { color: red; font-weight: bold; animation: flash 1s infinite; }
+
+    @keyframes flash {
+      0%,100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    #voteStatus {
+      margin-top: 16px;
+      font-size: 16px;
+      font-weight: 500;
+      color: #555;
+      min-height: 24px;
+    }
+
+    #quirkyLine {
+      margin: 12px 0;
+      font-style: italic;
+      font-weight: 500;
+      color: #222;
+    }
+
+    h3 {
+      margin-top: 10px;
+      font-size: 18px;
+      color: #333;
+    }
+
+    #voteTimer {
+      font-weight: bold;
+    }
+
+    /* Chat styles */
+    .chat-container {
+      margin-top: 20px;
+      border-top: 2px solid #ddd;
+      padding-top: 20px;
+    }
+
+    .chat-box {
+      max-height: 200px;
+      overflow-y: auto;
+      background: #f8f9fa;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 10px;
+      border: 1px solid #e0e0e0;
+    }
+
+    .chat-message {
+      margin-bottom: 8px;
+      padding: 6px 10px;
+      background: white;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+
+    .chat-message .sender {
+      font-weight: 600;
+      color: #4b7bec;
+      margin-right: 6px;
+    }
+
+    .chat-message .time {
+      font-size: 11px;
+      color: #999;
+      margin-left: 6px;
+    }
+
+    .chat-input-container {
+      display: flex;
+      gap: 8px;
+    }
+
+    .chat-input {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+
+    .chat-send-btn {
+      padding: 10px 20px;
+      background-color: #4b7bec;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.2s ease;
+    }
+
+    .chat-send-btn:hover {
+      background-color: #3867d6;
+    }
+
+    .chat-send-btn:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body>
+  <div class="page-container">
+    <h1>Choose Your Suspect 🔍</h1>
+
+    <p id="playerTurn"></p>
+
+    <div class="clue-box" id="suspectOptions"></div>
+
+    <p id="voteStatus"></p>
+
+    <!-- Quirky line about being smart -->
+    <p id="quirkyLine">🕵️‍♂️ Be smart, think carefully, and catch the imposter! 🧠</p>
+
+    <h3>Time Remaining: <span id="voteTimer" class="timer-orange">30</span>s</h3>
+
+    <!-- Chat container -->
+    <div class="chat-container">
+      <h4 style="margin-bottom: 10px; color: #555;">💬 Discussion</h4>
+      <div class="chat-box" id="chatBox"></div>
+      <div class="chat-input-container">
+        <input type="text" class="chat-input" id="chatInput" placeholder="Type your message..." maxlength="200">
+        <button class="chat-send-btn" id="chatSendBtn">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/vote.js"></script>
+</body>
+</html>

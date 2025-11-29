@@ -1,0 +1,9 @@
+{
+    "players": [
+      { "name": "Alice", "points": 120 },
+      { "name": "John", "points": 95 },
+      { "name": "Sara", "points": 80 },
+      { "name": "Mike", "points": 70 }
+    ]
+  }
+  
