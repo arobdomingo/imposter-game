@@ -147,4 +147,3 @@ async def clean_orphaned_data():
 
 if __name__ == "__main__":
     asyncio.run(clean_orphaned_data())
-
