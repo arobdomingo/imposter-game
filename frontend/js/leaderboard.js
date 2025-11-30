@@ -12,6 +12,11 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function initLeaderboardPage() {
+  // Check authentication
+  if (!requireAuth()) {
+    return; // Redirect to login if not authenticated
+  }
+  
   // Elements
   const leaderboardListEl = document.getElementById('leaderboardList');
 

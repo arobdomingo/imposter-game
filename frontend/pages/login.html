@@ -211,9 +211,11 @@
           localStorage.setItem('current_user_id', result.user_id || result.id || '1');
           loginBtn.textContent = 'Logged in!';
           
-          // Redirect to home page
+          // Redirect to intended page or home
+          const redirectTo = sessionStorage.getItem('redirectAfterLogin') || '/home';
+          sessionStorage.removeItem('redirectAfterLogin');
           setTimeout(() => {
-            window.location.href = "/home";
+            window.location.href = redirectTo;
           }, 500);
         } else {
           throw new Error('Login failed');
@@ -312,9 +314,11 @@
         // Clean URL (remove hash)
         window.history.replaceState({}, document.title, window.location.pathname);
         
-        // Redirect to home page
+        // Redirect to intended page or home
+        const redirectTo = sessionStorage.getItem('redirectAfterLogin') || '/home';
+        sessionStorage.removeItem('redirectAfterLogin');
         setTimeout(() => {
-          window.location.href = '/home';
+          window.location.href = redirectTo;
         }, 500);
       } catch (error) {
         console.error('Discord token handling error:', error);

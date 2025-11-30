@@ -12,6 +12,11 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function initLobbyPage() {
+  // Check authentication
+  if (!requireAuth()) {
+    return; // Redirect to login if not authenticated
+  }
+  
   // ----- Get lobby code and ID from URL -----
   const params = new URLSearchParams(window.location.search);
   const lobbyCode = params.get("code");

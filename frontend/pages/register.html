@@ -294,9 +294,11 @@
               Auth.set(loginResult.token);
               localStorage.setItem('current_user_id', loginResult.user_id || result.user.id || '1');
               
-              // Redirect to home page
+              // Redirect to intended page or home
+              const redirectTo = sessionStorage.getItem('redirectAfterLogin') || '/home';
+              sessionStorage.removeItem('redirectAfterLogin');
               setTimeout(() => {
-                window.location.href = "/home";
+                window.location.href = redirectTo;
               }, 1000);
             } else {
               // Registration successful but auto-login failed, redirect to login

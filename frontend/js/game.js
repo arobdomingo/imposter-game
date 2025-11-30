@@ -12,6 +12,11 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function initGamePage() {
+  // Check authentication
+  if (!requireAuth()) {
+    return; // Redirect to login if not authenticated
+  }
+  
   // Get game info from URL
   const params = new URLSearchParams(window.location.search);
   const gameId = parseInt(params.get("game_id"));
