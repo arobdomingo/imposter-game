@@ -2,7 +2,7 @@ services:
   - type: web
     name: imposter-game
     env: python
-    buildCommand: pip install -e . && alembic upgrade head
+    buildCommand: pip install -e . && PYTHONPATH=src alembic upgrade head
     startCommand: uvicorn user_service.api:app --host 0.0.0.0 --port $PORT
     plan: free
     envVars:

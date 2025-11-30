@@ -6,8 +6,14 @@ import os
 import sys
 from dotenv import load_dotenv
 
-# Load .env from project root
-load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
+# Load .env from project root, but don't override existing environment variables
+# This is important for production environments (Render, Heroku) where env vars are set externally
+# Only load .env if we're not in a production environment (no DATABASE_URL set)
+env_path = os.path.join(os.path.dirname(__file__), "..", ".env")
+if not os.environ.get("DATABASE_URL") and os.path.exists(env_path):
+    # Only load .env in development (when DATABASE_URL is not set)
+    # override=False ensures existing env vars (from Render/Heroku) are not overwritten
+    load_dotenv(env_path, override=False)
 
 # Add src/ to Python path
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "src"))
