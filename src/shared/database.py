@@ -12,12 +12,14 @@ def get_db():
     if not engine:
         # Check if DATABASE_URL is provided (common in Render, Heroku, etc.)
         database_url = os.environ.get("DATABASE_URL")
-        
+
         if database_url:
             # If DATABASE_URL is provided, use it directly
             # Convert postgresql:// to postgresql+psycopg2:// if needed
             if database_url.startswith("postgresql://"):
-                database_url = database_url.replace("postgresql://", "postgresql+psycopg2://", 1)
+                database_url = database_url.replace(
+                    "postgresql://", "postgresql+psycopg2://", 1
+                )
             DATABASE_URL = database_url
         else:
             # Fall back to individual environment variables
@@ -25,7 +27,7 @@ def get_db():
             username = os.environ.get("POSTGRES_USER", "user")
             password = os.environ.get("POSTGRES_PASSWORD", "password")
             database = os.environ.get("POSTGRES_DB", username)
-            
+
             # Don't use "db" as default - that's only for Docker Compose
             if host == "db" and not os.environ.get("POSTGRES_HOST"):
                 host = "localhost"

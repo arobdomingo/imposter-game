@@ -24,7 +24,9 @@ if database_url:
     # If DATABASE_URL is provided, use it directly
     # Convert postgresql:// to postgresql+psycopg2:// if needed
     if database_url.startswith("postgresql://"):
-        database_url = database_url.replace("postgresql://", "postgresql+psycopg2://", 1)
+        database_url = database_url.replace(
+            "postgresql://", "postgresql+psycopg2://", 1
+        )
     config.set_section_option(section, "sqlalchemy.url", database_url)
 else:
     # Fall back to individual environment variables
@@ -32,7 +34,7 @@ else:
     # Don't use "db" as default - that's only for Docker Compose
     if host == "db" and not os.environ.get("POSTGRES_HOST"):
         host = "localhost"
-    
+
     config.set_section_option(section, "DATABASE_HOST", host)
     config.set_section_option(
         section, "DATABASE_USER", os.environ.get("POSTGRES_USER", "user")
