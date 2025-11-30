@@ -2,17 +2,31 @@
 
 ## Prerequisites
 
-1. Start Docker containers:
+1. **Set up environment variables**:
+   
+   Create a `.env` file in the project root directory with the following content:
+   ```bash
+   POSTGRES_HOST=db
+   POSTGRES_USER=group7
+   POSTGRES_PASSWORD=123456789
+   DISCORD_CLIENT_ID=1444547968496828556
+   DISCORD_CLIENT_SECRET=Pfj3r5wIINB3bBleNZMfPMjDCHzA4Dfp
+   DISCORD_REDIRECT_URI=http://localhost:8000/v2/authentications/discord/callback
+   ```
+   
+   **Note**: The `.env` file should be placed in the root directory of the project (same level as `docker-compose.yml`).
+
+2. **Start Docker containers**:
    ```bash
    docker compose up -d
    ```
 
-2. Create test users (if needed):
+3. **Create test users** (if needed):
    ```bash
    docker compose exec web python scripts/add_test_users.py
    ```
 
-3. Test user credentials:
+4. **Test user credentials**:
    - player1@test.com / test123
    - player2@test.com / test123
    - player3@test.com / test123
