@@ -24,8 +24,8 @@ function initGamePage() {
   const lobbyCode = params.get("code") || "";
 
   if (!gameId) {
-    alert("Game ID not found. Redirecting to home...");
-    window.location.href = "/home";
+    alert("Game ID not found. Refreshing page...");
+    window.location.reload();
     return;
   }
 
@@ -105,8 +105,8 @@ function initGamePage() {
       startPolling();
     } catch (err) {
       console.error("Error initializing game:", err);
-      alert("Failed to load game. Redirecting...");
-      window.location.href = "/home";
+      alert("Failed to load game. Refreshing page...");
+      window.location.reload();
     }
   }
 
@@ -453,10 +453,10 @@ function initGamePage() {
       gameState.playerCheckInterval = null;
     }
     
-    // Show alert and redirect
+    // Show alert and refresh
     alert(message);
     setTimeout(() => {
-      window.location.href = `/lobby?lobby_id=${lobbyId}&code=${lobbyCode}`;
+      window.location.reload();
     }, 2000);
   }
 

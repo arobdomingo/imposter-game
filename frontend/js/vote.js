@@ -24,8 +24,8 @@ function initVotePage() {
   const lobbyCode = params.get("code") || "";
 
   if (!gameId) {
-    alert("Game ID not found. Redirecting to home...");
-    window.location.href = "/home";
+    alert("Game ID not found. Refreshing page...");
+    window.location.reload();
     return;
   }
 
@@ -152,8 +152,8 @@ function initVotePage() {
       }
     } catch (err) {
       console.error("Error initializing voting:", err);
-      alert("Failed to load voting page. Redirecting...");
-      window.location.href = "/home";
+      alert("Failed to load voting page. Refreshing page...");
+      window.location.reload();
     }
   }
 
@@ -247,8 +247,8 @@ function initVotePage() {
       console.error("Error submitting vote:", err);
       if (err.message && err.message.includes("Imposter cannot vote")) {
         // This shouldn't happen for regular players, but handle it gracefully
-        alert("You cannot vote. Redirecting...");
-        window.location.href = "/home";
+        alert("You cannot vote. Refreshing page...");
+        window.location.reload();
       } else {
         alert(err.message || "Failed to submit vote. Please try again.");
         // Re-enable buttons
@@ -350,10 +350,10 @@ function initVotePage() {
       gameState.playerCheckInterval = null;
     }
     
-    // Show alert and redirect
+    // Show alert and refresh
     alert(message);
     setTimeout(() => {
-      window.location.href = `/lobby?lobby_id=${lobbyId}&code=${lobbyCode}`;
+      window.location.reload();
     }, 2000);
   }
 

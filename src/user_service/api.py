@@ -95,7 +95,16 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
 
         # Skip rate limiting for game-related endpoints (lobbies, games, votes, clues, chat)
         # These endpoints are used for real-time game polling and need frequent access
-        game_paths = ["/v2/lobbies/", "/v2/games/", "/v2/votes/", "/v2/clues/", "/v2/chat/", "/ws/"]
+        # Note: /games/ is without /v2/ prefix (from chat_routes.py)
+        game_paths = [
+            "/v2/lobbies/",
+            "/v2/games/",
+            "/games/",  # Chat routes use /games/{id}/chat (no /v2/ prefix)
+            "/v2/votes/",
+            "/v2/clues/",
+            "/v2/chat/",
+            "/ws/",
+        ]
         if any(request.url.path.startswith(path) for path in game_paths):
             return await call_next(request)
 
@@ -828,6 +837,10 @@ async def discord_login():
 
     if not DISCORD_CLIENT_ID or not DISCORD_REDIRECT_URI:
         # Misconfigured backend – missing env vars
+        logger.error(
+            f"Discord OAuth not configured: CLIENT_ID={'set' if DISCORD_CLIENT_ID else 'missing'}, "
+            f"REDIRECT_URI={'set' if DISCORD_REDIRECT_URI else 'missing'}"
+        )
         raise HTTPException(
             status_code=500, detail="Discord OAuth is not configured on the server."
         )
@@ -841,6 +854,13 @@ async def discord_login():
     # optional: "state": <csrf_token>
 
     url = f"{DISCORD_OAUTH_AUTHORIZE_URL}?{urlencode(params)}"
+
+    logger.info(
+        f"Discord OAuth login: redirecting to Discord\n"
+        f"  - client_id: {DISCORD_CLIENT_ID}\n"
+        f"  - redirect_uri: {DISCORD_REDIRECT_URI}\n"
+        f"  - Full URL: {url}"
+    )
 
     return RedirectResponse(url)
 
@@ -860,15 +880,19 @@ async def discord_callback(
         error_msg = error_description or error
         logger.error(f"Discord OAuth error: {error_msg}")
         frontend_redirect_uri = os.getenv("FRONTEND_REDIRECT_URI", "/login")
-        
+
         # If FRONTEND_REDIRECT_URI is a relative path, make it absolute
         if frontend_redirect_uri.startswith("/"):
             base_url = os.getenv("BASE_URL", "")
             if not base_url and os.getenv("RENDER"):
                 service_name = os.getenv("RENDER_SERVICE_NAME", "imposter-game")
                 base_url = f"https://{service_name}.onrender.com"
-            frontend_redirect_uri = f"{base_url}{frontend_redirect_uri}" if base_url else frontend_redirect_uri
-        
+            frontend_redirect_uri = (
+                f"{base_url}{frontend_redirect_uri}"
+                if base_url
+                else frontend_redirect_uri
+            )
+
         redirect_url = (
             f"{frontend_redirect_uri}?error={error}&error_description={error_msg}"
         )
@@ -962,7 +986,7 @@ async def discord_callback(
     # Redirect to frontend login page with token in URL hash (hash is not sent to server)
     # Frontend will extract token from hash and store it
     frontend_redirect_uri = os.getenv("FRONTEND_REDIRECT_URI", "/login")
-    
+
     # If FRONTEND_REDIRECT_URI is a relative path, make it absolute using the current request's base URL
     # This ensures redirects work correctly in production (Render) vs localhost
     if frontend_redirect_uri.startswith("/"):
@@ -977,8 +1001,10 @@ async def discord_callback(
             else:
                 # Fallback: use relative path (will work if callback is on same domain)
                 base_url = ""
-        frontend_redirect_uri = f"{base_url}{frontend_redirect_uri}" if base_url else frontend_redirect_uri
-    
+        frontend_redirect_uri = (
+            f"{base_url}{frontend_redirect_uri}" if base_url else frontend_redirect_uri
+        )
+
     redirect_url = f"{frontend_redirect_uri}#discord_token={token}"
 
     return RedirectResponse(url=redirect_url)

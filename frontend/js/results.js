@@ -24,8 +24,8 @@ function initResultsPage() {
   const lobbyCode = params.get("code") || "";
 
   if (!gameId) {
-    alert("Game ID not found. Redirecting to home...");
-    window.location.href = "/home";
+    alert("Game ID not found. Refreshing page...");
+    window.location.reload();
     return;
   }
 
@@ -104,7 +104,7 @@ function initResultsPage() {
         gameState.players = gameData.players;
         gameState.originalPlayerCount = gameData.players.length;
         
-        // Fetch user names for each player
+        // Fetch user names for each player (silently handle 404s)
         const playerPromises = gameData.players.map(async (player) => {
           try {
             const user = await window.API.User.getById(player.user_id);
@@ -113,6 +113,16 @@ function initResultsPage() {
               user_name: user ? user.name : null
             };
           } catch (err) {
+            // User not found (404) - silently use fallback name
+            // Don't log 404 errors to console
+            if (err.status === 404 || err.statusCode === 404 || 
+                (err.message && err.message.includes("User not found"))) {
+              return {
+                ...player,
+                user_name: `Player ${player.seat_no || player.id}`
+              };
+            }
+            // For other errors, return null name
             return {
               ...player,
               user_name: null
@@ -153,8 +163,8 @@ function initResultsPage() {
       }
     } catch (err) {
       console.error("Error initializing results:", err);
-      alert("Failed to load results. Redirecting...");
-      window.location.href = "/home";
+      alert("Failed to load results. Refreshing page...");
+      window.location.reload();
     }
   }
 
@@ -264,8 +274,17 @@ function initResultsPage() {
       renderChat(messages);
     } catch (err) {
       // Silently handle chat errors (game might be finished, chat might not be available)
-      // Only log non-network errors
-      if (err.message && !err.message.includes("Failed to fetch") && !err.message.includes("ERR_EMPTY_RESPONSE")) {
+      // Don't log 404, 429, or network errors (these are expected in some scenarios)
+      const status = err.status || err.statusCode;
+      if (status === 404 || status === 429) {
+        // 404: Chat might not exist, 429: Rate limited (will retry)
+        return;
+      }
+      // Only log unexpected errors
+      if (err.message && 
+          !err.message.includes("Failed to fetch") && 
+          !err.message.includes("ERR_EMPTY_RESPONSE") &&
+          !err.message.includes("Too Many Requests")) {
         console.error("Error loading chat:", err);
       }
     }
