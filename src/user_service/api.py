@@ -93,21 +93,25 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
         if any(request.url.path.startswith(path) for path in auth_paths):
             return await call_next(request)
 
-        user_repo = get_user_repository()
-
-        # Extract JWT if available
+        # Extract JWT if available (without database connection for unauthenticated requests)
         auth_header = request.headers.get("Authorization")
         if auth_header and auth_header.startswith("Bearer "):
             token = auth_header.split(" ")[1]
-            user = await verify_jwt(token, user_repo)
-            if user:
-                key = f"user:{user.id}"
-                limit = (
-                    2 * user.tier if user.tier > 0 else 10
-                )  # Default to 10 if tier is 0
-            else:
+            try:
+                user_repo = get_user_repository()
+                user = await verify_jwt(token, user_repo)
+                if user:
+                    key = f"user:{user.id}"
+                    limit = (
+                        2 * user.tier if user.tier > 0 else 10
+                    )  # Default to 10 if tier is 0
+                else:
+                    key = f"ip:{request.client.host}"
+                    limit = 10  # Increased limit for unauthenticated users
+            except Exception:
+                # If database connection fails, fall back to IP-based limiting
                 key = f"ip:{request.client.host}"
-                limit = 10  # Increased limit for unauthenticated users
+                limit = 10
         else:
             key = f"ip:{request.client.host}"
             limit = (
@@ -414,9 +418,16 @@ async def create_user_v2(
     try:
         new_user = await user_repo.create(user.name, user.email, user.password)
         return {"user": UserSchema.from_db_model(new_user)}
-    except IntegrityError:
+    except IntegrityError as e:
+        logger.error(f"User creation failed - IntegrityError: {str(e)}")
         response.status_code = 409
-        return {"detail": "Item already exists"}
+        return {"detail": "Username or email already exists"}
+    except Exception as e:
+        logger.error(
+            f"User creation failed - Unexpected error: {str(e)}", exc_info=True
+        )
+        response.status_code = 500
+        return {"detail": "Failed to create user. Please try again later."}
 
 
 @app.patch("/v2/users/{user_id}")
