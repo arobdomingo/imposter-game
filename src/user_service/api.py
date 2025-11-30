@@ -1049,6 +1049,7 @@ if os.path.exists(frontend_path):
             return FileResponse(os.path.join(pages_path, "leaderboard.html"))
 
 
+@app.get("/api/admin/run-migrations")
 @app.post("/api/admin/run-migrations")
 async def run_migrations_endpoint(
     secret_key: str = Query(..., description="Secret key to authorize this action"),
