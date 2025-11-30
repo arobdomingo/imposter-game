@@ -979,9 +979,10 @@ if os.path.exists(frontend_path):
     # Serve HTML pages
     if os.path.exists(pages_path):
 
-        @app.get("/", response_class=FileResponse)
+        @app.get("/")
         async def read_root():
-            return FileResponse(os.path.join(pages_path, "home.html"))
+            # Redirect root to login page
+            return RedirectResponse(url="/login")
 
         @app.get("/login", response_class=FileResponse)
         async def read_login():
