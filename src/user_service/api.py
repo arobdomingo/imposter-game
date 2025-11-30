@@ -812,7 +812,7 @@ async def discord_callback(
     code: Optional[str] = Query(None),
     error: Optional[str] = Query(None),
     error_description: Optional[str] = Query(None),
-    user_repo: UserRepository = Depends(get_user_repository)
+    user_repo: UserRepository = Depends(get_user_repository),
 ):
     """OAuth callback for Discord login. Discord redirects the user here with a `code` query parameter.
     1) Exchange code for access token, 2) use token to fetch profile, 3) find/create local user, 4) issue a JWT"""
@@ -822,7 +822,9 @@ async def discord_callback(
         error_msg = error_description or error
         logger.error(f"Discord OAuth error: {error_msg}")
         frontend_redirect_uri = os.getenv("FRONTEND_REDIRECT_URI", "/login")
-        redirect_url = f"{frontend_redirect_uri}?error={error}&error_description={error_msg}"
+        redirect_url = (
+            f"{frontend_redirect_uri}?error={error}&error_description={error_msg}"
+        )
         return RedirectResponse(url=redirect_url)
 
     if not code:
@@ -851,13 +853,17 @@ async def discord_callback(
         error_detail = "Failed to obtain access token from Discord."
         try:
             error_json = token_resp.json()
-            error_detail = error_json.get("error_description", error_json.get("error", error_detail))
-            logger.error(f"Discord token exchange failed: {error_detail}, Response: {token_resp.text}")
-        except:
-            logger.error(f"Discord token exchange failed: {token_resp.status_code}, Response: {token_resp.text}")
-        raise HTTPException(
-            status_code=400, detail=error_detail
-        )
+            error_detail = error_json.get(
+                "error_description", error_json.get("error", error_detail)
+            )
+            logger.error(
+                f"Discord token exchange failed: {error_detail}, Response: {token_resp.text}"
+            )
+        except Exception:
+            logger.error(
+                f"Discord token exchange failed: {token_resp.status_code}, Response: {token_resp.text}"
+            )
+        raise HTTPException(status_code=400, detail=error_detail)
 
     token_json = token_resp.json()
     access_token = token_json.get("access_token")
@@ -875,12 +881,14 @@ async def discord_callback(
         try:
             error_json = me_resp.json()
             error_detail = error_json.get("message", error_detail)
-            logger.error(f"Discord profile fetch failed: {error_detail}, Response: {me_resp.text}")
-        except:
-            logger.error(f"Discord profile fetch failed: {me_resp.status_code}, Response: {me_resp.text}")
-        raise HTTPException(
-            status_code=400, detail=error_detail
-        )
+            logger.error(
+                f"Discord profile fetch failed: {error_detail}, Response: {me_resp.text}"
+            )
+        except Exception:
+            logger.error(
+                f"Discord profile fetch failed: {me_resp.status_code}, Response: {me_resp.text}"
+            )
+        raise HTTPException(status_code=400, detail=error_detail)
 
     me = me_resp.json()
     discord_id = me["id"]
@@ -908,7 +916,7 @@ async def discord_callback(
     # Frontend will extract token from hash and store it
     frontend_redirect_uri = os.getenv("FRONTEND_REDIRECT_URI", "/login")
     redirect_url = f"{frontend_redirect_uri}#discord_token={token}"
-    
+
     return RedirectResponse(url=redirect_url)
 
 
