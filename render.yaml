@@ -3,7 +3,7 @@ services:
     name: imposter-game
     env: python
     buildCommand: pip install -e .
-    startCommand: sh -c "PYTHONPATH=src alembic upgrade head && uvicorn user_service.api:app --host 0.0.0.0 --port $PORT"
+    startCommand: sh -c "echo 'Running database migrations...' && PYTHONPATH=src alembic upgrade head && echo 'Migrations completed successfully!' && uvicorn user_service.api:app --host 0.0.0.0 --port $PORT"
     plan: free
     envVars:
       # Database connection - Render automatically provides DATABASE_URL

@@ -1047,3 +1047,52 @@ if os.path.exists(frontend_path):
         @app.get("/leaderboard", response_class=FileResponse)
         async def read_leaderboard():
             return FileResponse(os.path.join(pages_path, "leaderboard.html"))
+
+
+@app.post("/admin/run-migrations")
+async def run_migrations_endpoint(
+    secret_key: str = Query(..., description="Secret key to authorize this action"),
+):
+    """
+    Manually run database migrations.
+    
+    Usage: POST /admin/run-migrations?secret_key=YOUR_SECRET_KEY
+    
+    WARNING: This should only be used for manual migration runs.
+    """
+    # Simple authentication - use a secret key from environment
+    expected_key = os.environ.get("ADMIN_SECRET_KEY", "change-me-in-production")
+    if secret_key != expected_key:
+        raise HTTPException(status_code=403, detail="Invalid secret key")
+    
+    try:
+        import subprocess
+        import sys
+        
+        # Run alembic upgrade head
+        result = subprocess.run(
+            [sys.executable, "-m", "alembic", "upgrade", "head"],
+            cwd="/opt/render/project/src" if os.path.exists("/opt/render/project/src") else ".",
+            env={**os.environ, "PYTHONPATH": "src"},
+            capture_output=True,
+            text=True,
+            timeout=60
+        )
+        
+        if result.returncode == 0:
+            return {
+                "success": True,
+                "message": "Migrations completed successfully",
+                "output": result.stdout
+            }
+        else:
+            logger.error(f"Migration failed: {result.stderr}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Migration failed: {result.stderr}"
+            )
+    except subprocess.TimeoutExpired:
+        raise HTTPException(status_code=500, detail="Migration timed out")
+    except Exception as e:
+        logger.error(f"Error running migrations: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to run migrations: {str(e)}")
