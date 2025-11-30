@@ -6,8 +6,13 @@ services:
     startCommand: uvicorn user_service.api:app --host 0.0.0.0 --port $PORT
     plan: free
     envVars:
-      # Database connection - Render will automatically provide DATABASE_URL
-      # We'll need to parse it or use individual variables
+      # Database connection - Render automatically provides DATABASE_URL
+      # The code will use DATABASE_URL if available, otherwise fall back to individual vars
+      - key: DATABASE_URL
+        fromDatabase:
+          name: imposter-game-db
+          property: connectionString
+      # Individual variables as fallback (for compatibility)
       - key: POSTGRES_HOST
         fromDatabase:
           name: imposter-game-db
