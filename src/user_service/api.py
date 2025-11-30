@@ -74,8 +74,25 @@ ALGORITHM = "HS256"
 
 class RateLimiterMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
+        # Skip rate limiting in testing mode
         if os.environ.get("TESTING") == "1":
             return await call_next(request)
+
+        # Skip rate limiting for static files and public endpoints
+        static_paths = ["/js/", "/css/", "/shared/", "/pages/", "/admin"]
+        if any(request.url.path.startswith(path) for path in static_paths):
+            return await call_next(request)
+
+        # Skip rate limiting for health checks and public API endpoints
+        public_paths = ["/v2/analytics/health", "/docs", "/redoc", "/openapi.json"]
+        if any(request.url.path.startswith(path) for path in public_paths):
+            return await call_next(request)
+
+        # Skip rate limiting for authentication endpoints (login, register, Discord OAuth)
+        auth_paths = ["/v2/authentications/", "/v2/users/", "/users/"]
+        if any(request.url.path.startswith(path) for path in auth_paths):
+            return await call_next(request)
+
         user_repo = get_user_repository()
 
         # Extract JWT if available
@@ -85,13 +102,17 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
             user = await verify_jwt(token, user_repo)
             if user:
                 key = f"user:{user.id}"
-                limit = 2 * user.tier
+                limit = (
+                    2 * user.tier if user.tier > 0 else 10
+                )  # Default to 10 if tier is 0
             else:
                 key = f"ip:{request.client.host}"
-                limit = 1
+                limit = 10  # Increased limit for unauthenticated users
         else:
             key = f"ip:{request.client.host}"
-            limit = 1
+            limit = (
+                10  # Increased limit for unauthenticated users (was 1, too restrictive)
+            )
 
         now = time()
         window = 10
