@@ -1,0 +1,48 @@
+services:
+  - type: web
+    name: imposter-game
+    env: python
+    buildCommand: pip install -e . && alembic upgrade head
+    startCommand: uvicorn user_service.api:app --host 0.0.0.0 --port $PORT
+    plan: free
+    envVars:
+      # Database connection - Render will automatically provide DATABASE_URL
+      # We'll need to parse it or use individual variables
+      - key: POSTGRES_HOST
+        fromDatabase:
+          name: imposter-game-db
+          property: host
+      - key: POSTGRES_USER
+        fromDatabase:
+          name: imposter-game-db
+          property: user
+      - key: POSTGRES_PASSWORD
+        fromDatabase:
+          name: imposter-game-db
+          property: password
+      - key: POSTGRES_DB
+        fromDatabase:
+          name: imposter-game-db
+          property: database
+      # Discord OAuth - Set these manually in Render dashboard
+      - key: DISCORD_CLIENT_ID
+        sync: false
+      - key: DISCORD_CLIENT_SECRET
+        sync: false
+      - key: DISCORD_REDIRECT_URI
+        sync: false
+      # Other settings
+      - key: AUTH_TTL_SECONDS
+        value: 3600
+      - key: PYTHONPATH
+        value: src
+      - key: FRONTEND_REDIRECT_URI
+        value: /login
+      - key: TESTING
+        value: "0"
+
+databases:
+  - name: imposter-game-db
+    plan: free
+    databaseName: imposter_game
+

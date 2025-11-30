@@ -9,17 +9,11 @@ const Auth = {
 };
 
 // ---------- Discord OAuth redirect ----------
+// Note: This function is now handled by the backend API endpoint
+// Frontend should call /v2/authentications/discord/login which handles the OAuth flow
 function discordLogin() {
-    const CLIENT_ID = 'DISCORD_CLIENT_ID';          // TODO: replace
-    const REDIRECT_URI = 'DISCORD_REDIRECT_URI';    // TODO: replace
-    const scope = 'identify';
-    const params = new URLSearchParams({
-        client_id: CLIENT_ID,
-        redirect_uri: REDIRECT_URI,
-        response_type: 'code',
-        scope
-    });
-    window.location.href = `https://discord.com/oauth2/authorize?${params.toString()}`;
+    // Redirect to backend Discord login endpoint
+    window.location.href = '/v2/authentications/discord/login';
 }
 
 // ---------- Timer helper ----------
