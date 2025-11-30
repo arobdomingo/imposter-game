@@ -93,6 +93,12 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
         if any(request.url.path.startswith(path) for path in auth_paths):
             return await call_next(request)
 
+        # Skip rate limiting for game-related endpoints (lobbies, games, votes, clues, chat)
+        # These endpoints are used for real-time game polling and need frequent access
+        game_paths = ["/v2/lobbies/", "/v2/games/", "/v2/votes/", "/v2/clues/", "/v2/chat/", "/ws/"]
+        if any(request.url.path.startswith(path) for path in game_paths):
+            return await call_next(request)
+
         # Extract JWT if available (without database connection for unauthenticated requests)
         auth_header = request.headers.get("Authorization")
         if auth_header and auth_header.startswith("Bearer "):
@@ -854,6 +860,15 @@ async def discord_callback(
         error_msg = error_description or error
         logger.error(f"Discord OAuth error: {error_msg}")
         frontend_redirect_uri = os.getenv("FRONTEND_REDIRECT_URI", "/login")
+        
+        # If FRONTEND_REDIRECT_URI is a relative path, make it absolute
+        if frontend_redirect_uri.startswith("/"):
+            base_url = os.getenv("BASE_URL", "")
+            if not base_url and os.getenv("RENDER"):
+                service_name = os.getenv("RENDER_SERVICE_NAME", "imposter-game")
+                base_url = f"https://{service_name}.onrender.com"
+            frontend_redirect_uri = f"{base_url}{frontend_redirect_uri}" if base_url else frontend_redirect_uri
+        
         redirect_url = (
             f"{frontend_redirect_uri}?error={error}&error_description={error_msg}"
         )
@@ -947,6 +962,23 @@ async def discord_callback(
     # Redirect to frontend login page with token in URL hash (hash is not sent to server)
     # Frontend will extract token from hash and store it
     frontend_redirect_uri = os.getenv("FRONTEND_REDIRECT_URI", "/login")
+    
+    # If FRONTEND_REDIRECT_URI is a relative path, make it absolute using the current request's base URL
+    # This ensures redirects work correctly in production (Render) vs localhost
+    if frontend_redirect_uri.startswith("/"):
+        # Get the base URL from the request (if available) or use environment variable
+        base_url = os.getenv("BASE_URL", "")
+        if not base_url:
+            # Try to construct from common environment variables
+            if os.getenv("RENDER"):
+                # On Render, construct from service URL
+                service_name = os.getenv("RENDER_SERVICE_NAME", "imposter-game")
+                base_url = f"https://{service_name}.onrender.com"
+            else:
+                # Fallback: use relative path (will work if callback is on same domain)
+                base_url = ""
+        frontend_redirect_uri = f"{base_url}{frontend_redirect_uri}" if base_url else frontend_redirect_uri
+    
     redirect_url = f"{frontend_redirect_uri}#discord_token={token}"
 
     return RedirectResponse(url=redirect_url)

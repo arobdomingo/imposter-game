@@ -43,6 +43,9 @@ services:
         value: src
       - key: FRONTEND_REDIRECT_URI
         value: /login
+      # Base URL for constructing absolute redirects (used for Discord OAuth)
+      - key: BASE_URL
+        value: https://imposter-game-dmy3.onrender.com
       - key: TESTING
         value: "0"
 
