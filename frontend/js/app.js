@@ -5,21 +5,80 @@ const Auth = {
     key: 'imposter_auth_token',
     get() { try { return localStorage.getItem(this.key); } catch { return null; } },
     set(token) { try { localStorage.setItem(this.key, token); } catch {} },
-    clear() { try { localStorage.removeItem(this.key); } catch {} }
+    clear() { try { localStorage.removeItem(this.key); } catch {} },
+    
+    // Check if user is authenticated
+    isAuthenticated() {
+        const token = this.get();
+        if (!token) return false;
+        
+        // Check if token is expired
+        try {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            const exp = payload.exp;
+            if (exp && exp < Math.floor(Date.now() / 1000)) {
+                // Token expired, clear it
+                this.clear();
+                return false;
+            }
+            return true;
+        } catch (e) {
+            // Invalid token format
+            this.clear();
+            return false;
+        }
+    }
 };
 
+// ---------- Require authentication ----------
+// Call this function at the start of protected pages
+function requireAuth(redirectTo = '/login') {
+    // Skip check on login and register pages
+    if (window.location.pathname === '/login' || window.location.pathname === '/register') {
+        return true;
+    }
+    
+    if (!Auth.isAuthenticated()) {
+        // Store the intended destination for redirect after login
+        const currentPath = window.location.pathname + window.location.search;
+        if (currentPath !== redirectTo) {
+            sessionStorage.setItem('redirectAfterLogin', currentPath);
+        }
+        window.location.href = redirectTo;
+        return false;
+    }
+    return true;
+}
+
+// Auto-check authentication on page load for protected pages
+(function autoCheckAuth() {
+    // List of protected pages (pages that require authentication)
+    const protectedPages = ['/home', '/lobby', '/game', '/vote', '/results', '/leaderboard'];
+    const currentPath = window.location.pathname;
+    
+    // Check if current page is protected
+    const isProtected = protectedPages.some(page => currentPath.startsWith(page));
+    
+    if (isProtected) {
+        // Skip check on login and register pages
+        if (currentPath !== '/login' && currentPath !== '/register') {
+            if (!Auth.isAuthenticated()) {
+                // Store the intended destination for redirect after login
+                const fullPath = window.location.pathname + window.location.search;
+                sessionStorage.setItem('redirectAfterLogin', fullPath);
+                window.location.href = '/login';
+                return;
+            }
+        }
+    }
+})();
+
 // ---------- Discord OAuth redirect ----------
+// Note: This function is now handled by the backend API endpoint
+// Frontend should call /v2/authentications/discord/login which handles the OAuth flow
 function discordLogin() {
-    const CLIENT_ID = 'DISCORD_CLIENT_ID';          // TODO: replace
-    const REDIRECT_URI = 'DISCORD_REDIRECT_URI';    // TODO: replace
-    const scope = 'identify';
-    const params = new URLSearchParams({
-        client_id: CLIENT_ID,
-        redirect_uri: REDIRECT_URI,
-        response_type: 'code',
-        scope
-    });
-    window.location.href = `https://discord.com/oauth2/authorize?${params.toString()}`;
+    // Redirect to backend Discord login endpoint
+    window.location.href = '/v2/authentications/discord/login';
 }
 
 // ---------- Timer helper ----------

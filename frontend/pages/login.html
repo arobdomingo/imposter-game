@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="/shared/tokens.css" />
   <link rel="stylesheet" href="/pages/styles.css" />
   <script src="/js/api.js"></script>
-  <script defer src="/js/app.js"></script>
+  <script src="/js/app.js"></script>
 
   <!-- Page-specific login styles -->
   <style>
@@ -120,6 +120,16 @@
       transform: translateY(-50%);
       z-index: -1;
     }
+
+    .link {
+      color: var(--accent-green);
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .link:hover {
+      text-decoration: underline;
+    }
   </style>  
 </head>
 <body>
@@ -144,6 +154,11 @@
     <button type="button" class="btn btn-discord" onclick="discordLogin()">
       <span>Login with Discord</span>
     </button>
+
+    <p style="margin-top: 24px; font-size: 14px; color: var(--text-muted);">
+      Don't have an account? 
+      <a href="/register" class="link" style="color: var(--accent-green); text-decoration: none; font-weight: 500;">Sign up here</a>
+    </p>
   </main>
 
   <script>
@@ -192,13 +207,15 @@
         const result = await window.API.User.login(email, password);
         
         if (result.token) {
-          Auth.set(result.token);
+          (window.Auth || Auth).set(result.token);
           localStorage.setItem('current_user_id', result.user_id || result.id || '1');
           loginBtn.textContent = 'Logged in!';
           
-          // Redirect to home page
+          // Redirect to intended page or home
+          const redirectTo = sessionStorage.getItem('redirectAfterLogin') || '/home';
+          sessionStorage.removeItem('redirectAfterLogin');
           setTimeout(() => {
-            window.location.href = "/home";
+            window.location.href = redirectTo;
           }, 500);
         } else {
           throw new Error('Login failed');
@@ -211,9 +228,112 @@
       }
     });
 
-    function discordLogin() {
-      // Add your Discord login logic here
-      alert("Discord login clicked!");
+    async function discordLogin() {
+      try {
+        // Call backend Discord login endpoint which will redirect to Discord
+        window.location.href = '/v2/authentications/discord/login';
+      } catch (error) {
+        console.error('Discord login error:', error);
+        alert('Failed to start Discord login. Please try again.');
+      }
+    }
+
+    // Ensure Auth is available (define it if app.js hasn't loaded yet)
+    if (typeof Auth === 'undefined') {
+      window.Auth = {
+        key: 'imposter_auth_token',
+        get() { try { return localStorage.getItem(this.key); } catch { return null; } },
+        set(token) { try { localStorage.setItem(this.key, token); } catch {} },
+        clear() { try { localStorage.removeItem(this.key); } catch {} }
+      };
+    }
+
+    // Handle Discord OAuth callback - check for token in URL hash
+    (function handleDiscordCallback() {
+      // Check URL hash for Discord token (backend redirects here with token in hash)
+      const hash = window.location.hash;
+      if (hash && hash.includes('discord_token=')) {
+        const tokenMatch = hash.match(/discord_token=([^&]+)/);
+        if (tokenMatch) {
+          const token = tokenMatch[1];
+          handleDiscordToken(token);
+          return;
+        }
+      }
+      
+      // Check for error in URL parameters (from Discord or backend)
+      const urlParams = new URLSearchParams(window.location.search);
+      const error = urlParams.get('error');
+      const errorDescription = urlParams.get('error_description');
+      
+      if (error) {
+        let errorMessage = 'Discord login failed';
+        if (errorDescription) {
+          errorMessage += `: ${errorDescription}`;
+        } else if (error) {
+          errorMessage += `: ${error}`;
+        }
+        
+        // Show user-friendly error messages
+        if (error === 'access_denied') {
+          errorMessage = 'Discord login was cancelled. Please try again if you want to log in.';
+        } else if (error === 'invalid_request') {
+          errorMessage = 'Invalid Discord login request. Please contact support if this persists.';
+        }
+        
+        alert(errorMessage);
+        console.error('Discord OAuth error:', error, errorDescription);
+        
+        // Clean URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    })();
+
+    function handleDiscordToken(token) {
+      try {
+        // Show loading state
+        const discordBtn = document.querySelector('.btn-discord');
+        if (discordBtn) {
+          discordBtn.disabled = true;
+          discordBtn.innerHTML = '<span>Completing login...</span>';
+        }
+
+        // Store token
+        Auth.set(token);
+        
+        // Extract user ID from JWT token
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          if (payload.sub) {
+            localStorage.setItem('current_user_id', payload.sub.toString());
+          }
+        } catch (e) {
+          console.warn('Could not extract user ID from token:', e);
+        }
+        
+        // Clean URL (remove hash)
+        window.history.replaceState({}, document.title, window.location.pathname);
+        
+        // Redirect to intended page or home
+        const redirectTo = sessionStorage.getItem('redirectAfterLogin') || '/home';
+        sessionStorage.removeItem('redirectAfterLogin');
+        setTimeout(() => {
+          window.location.href = redirectTo;
+        }, 500);
+      } catch (error) {
+        console.error('Discord token handling error:', error);
+        alert('Failed to complete Discord login. Please try again.');
+        
+        // Reset button state
+        const discordBtn = document.querySelector('.btn-discord');
+        if (discordBtn) {
+          discordBtn.disabled = false;
+          discordBtn.innerHTML = '<span>Login with Discord</span>';
+        }
+        
+        // Clean URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
     }
   </script>
 </body>

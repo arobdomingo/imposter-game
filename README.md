@@ -1,69 +1,60 @@
-# User Service
+# Imposter Game
 
-Your team has been put in charge of a janky web service that handles user accounts. Nobody knows what the contractors who put this thing together were thinking, but it's up to you and your intrepid teammates to turn this rickety thing into a well-oiled machine that generates tons of shareholder value.
+## Overview
 
-## Getting started
+Imposter Game is a multiplayer web game inspired by social deduction games. Players join a lobby, receive words, and must submit clues to reveal the imposter among them. The game supports multiple rounds, tracks scores, and dynamically updates the lobby as players join.
 
-One member from each group will mirror this repository privately on github.com (NOT github.sfu.ca) to create the team repository used for grading. If you wish to follow my recommended git process, then each group member will have their own private fork of the team repository from which they can make pull requests. It may help to create a github organization so your team repository isn't tied to any individual group member's account. All copies of the `user_service` repository must be private. **Making this code and your contributions to it publicly available (i.e., by making your repository public, or by making a pull request against a public repository) constitutes academic dishonesty.**
+The project includes a complete backend implementation with FastAPI, PostgreSQL, and WebSocket support for real-time gameplay.
 
-To mirror, create a private empty repository at `https://github.com/<some_id>/user_service`, and then run:
-```
-$ git clone https://github.sfu.ca/kjamshid/user_service
-$ git remote rename origin source
-$ git remote add upstream https://github.com/<some_id>/user_service
-$ git push -u main upstream
-```
+## Demo and Testing
 
-The teaching staff will only be looking at the team repository: it suffices to add kjamsh as a collaborator. Please do not add me as a collaborator to your own repositories, only the team repository.
+- **Demo Video**: See [demo.mp4](./demo.mp4) for a demonstration of the game in action
+- **Testing Checklist**: See [TESTING_CHECKLIST.md](./TESTING_CHECKLIST.md) for comprehensive testing documentation
 
-Project instructions will be posted to the issues page of your team repository on an ongoing basis.
+## Features Implemented (Frontend)
 
-To get a live deployment that you can edit follow these steps.
+- **Lobby Creation & Join**: Players can create a new lobby or join an existing one using a lobby code.
 
-1. Make a `.env` file containing the following, and DO NOT check it into git:
+- **Lobby Waiting Screen**: Displays connected players, lobby code, and enables the host to start the game once 4 players are present.
 
-```
-POSTGRES_HOST=db
-POSTGRES_USER=<some shared username>
-POSTGRES_PASSWORD=<some shared password>
-```
+- **Game Round Screen**: Displays the player's assigned role and word, allows one-word clue submission, and includes a countdown timer.
 
-2. Launch the application by running:
+- **Role Types**: Normal players, imposter-aware, and imposter-unaware.
 
-```
-$ docker compose watch
-```
+- **Mock API Integration**: Uses mock JSON files to simulate backend responses (lobby, player list, assigned word) to enable frontend development independently.
 
-The service is now running on `localhost:8000/`.
-You can visit `localhost:8000/admin`, `localhost:8000/docs`, and `localhost:8000/redoc` in your browser.
+- **Page Navigation**: Home → Lobby → Game Round → Clue Reveal → Voting → Results.
 
-If you edit any of the files in this repo, the server restarts to reflect your changes.
+- **Responsive and Styled UI**: Clean HTML/CSS design for MVP.
 
+## Features Implemented (Backend)
 
-3. You can follow the logs by running:
-```
-$ docker compose logs -f [service_name]
-```
-`service_name` is optional, if you only want to see logs for a given service (one of `web` or `db`).
+### User Service
+- **User Authentication**: JWT-based authentication with secure password hashing
+- **Discord OAuth Integration**: Single sign-on with Discord accounts
+- **User Management**: Registration, profile management, and user search
+- **Friendship System**: Send and manage friend requests, view friend lists
 
-* You may run into a ResourceExhausted: failed to copy files: userspace copy failed: write /app/.venv/bin/ruff: no space left on device.
+### Game Service
+- **Lobby Management**: Create, join, and leave game lobbies with unique lobby codes
+- **Game Engine**: Complete game lifecycle management with role assignment (imposter/normal players)
+- **Clue Submission**: Players submit one-word clues for each round
+- **Voting System**: Vote for suspected imposters with vote tracking and validation
+- **Chat System**: Real-time chat messages during gameplay
+- **Scoring System**: Calculate scores based on game outcomes and player performance
+- **Leaderboard**: Track and display player rankings and statistics
+- **Word Service**: Dynamic word assignment for different game modes
 
-```
-$ docker system prune --volumes
-```
+### Real-time Communication
+- **WebSocket Support**: Real-time updates for lobby state and game events
+- **Connection Management**: Efficient WebSocket connection handling for multiple concurrent games
 
+### Database & Infrastructure
+- **PostgreSQL Database**: Relational database with Alembic migrations for schema management
+- **Repository Pattern**: Clean data access layer with repository abstraction
+- **Service Layer**: Business logic separation with service classes
 
-* You can run tests as follows:
-```
-$ docker compose exec web pytest
-```
-
-## Relevant documentation
-
-[FastAPI User Guide](https://fastapi.tiangolo.com/tutorial/first-steps/) - This is the main library our web service runs on. Note that wherever it says to run, e.g., `fastapi dev main.py`, you should run `docker compose watch` to get a live server.
-
-[SQLAlchemy](https://docs.sqlalchemy.org/en/20/orm/quickstart.html) - This is the library we use to access our database (which is PostgreSQL). Use the links in the table of contents to skip to the type of query you want.
-
-[Alembic](https://alembic.sqlalchemy.org/en/latest/) - This tool is used to manage changes to our database schemas. Whenever you want to modify a table's shape in postgres (i.e., add, remove, or change the type of a column), use an alembic migration.
-
-[NiceGUI](https://nicegui.io/) - This is the library used for the frontend in the admin interface.
+### Additional Services
+- **Event Service**: Track and log game events for analytics
+- **Analytics Service**: Game statistics and performance metrics
+- **Admin Interface**: NiceGUI-based admin panel for system management

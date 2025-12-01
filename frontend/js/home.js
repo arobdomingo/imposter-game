@@ -12,6 +12,11 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function initHomePage() {
+  // Check authentication
+  if (!requireAuth()) {
+    return; // Redirect to login if not authenticated
+  }
+  
   // ----- Join Lobby -----
   async function joinLobby(codeInput) {
     try {

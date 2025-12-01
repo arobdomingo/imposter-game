@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Register | Imposter Game</title>
+  <link rel="stylesheet" href="/shared/reset.css" />
+  <link rel="stylesheet" href="/shared/tokens.css" />
+  <link rel="stylesheet" href="/pages/styles.css" />
+  <script src="/js/api.js"></script>
+  <script defer src="/js/app.js"></script>
+
+  <!-- Page-specific register styles -->
+  <style>
+    body {
+      background: var(--bg-clever);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      font-family: 'Poppins', sans-serif;
+    }
+
+    .card {
+      max-width: 480px;
+      width: 100%;
+      padding: 32px;
+      background: linear-gradient(135deg, var(--bg-clue), var(--bg-clever));
+      border: 2px solid var(--border-card);
+      border-radius: 16px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+      text-align: center;
+      animation: fadeIn 0.5s ease;
+    }
+
+    @keyframes fadeIn {
+      0% { opacity: 0; transform: translateY(20px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+
+    .title { 
+      margin-bottom: 12px; 
+      font-size: 28px; 
+    }
+    .subtitle { 
+      margin-bottom: 28px; 
+      font-size: 16px; 
+      color: var(--text-muted); 
+    }
+
+    .field {
+      text-align: left;
+      margin-bottom: 20px;
+    }
+
+    .field span {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .field input {
+      width: 100%;
+      padding: 16px;
+      border: 1px solid var(--border-card);
+      border-radius: 10px;
+      font-size: 18px;
+      transition: outline 0.2s, background 0.2s;
+      box-sizing: border-box;
+    }
+
+    .field input:focus {
+      outline: 2px solid var(--accent-green);
+      background: #fff;
+    }
+
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 16px;
+      margin-top: 12px;
+      border-radius: 10px;
+      border: none;
+      background: #000;
+      color: #fff;
+      font-weight: 600;
+      font-size: 18px;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      cursor: pointer;
+    }
+
+    .btn:hover { 
+      transform: scale(1.03); 
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+
+    .btn:disabled { 
+      background: var(--btn-disabled-bg); 
+      color: var(--btn-disabled-text); 
+      cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      background: transparent;
+      border: 2px solid var(--border-card);
+      color: var(--text-primary);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .link {
+      color: var(--accent-green);
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .link:hover {
+      text-decoration: underline;
+    }
+
+    .error-message {
+      color: #ff4444;
+      font-size: 14px;
+      margin-top: 8px;
+      text-align: left;
+      display: none;
+    }
+
+    .error-message.show {
+      display: block;
+    }
+
+    .success-message {
+      color: var(--accent-green);
+      font-size: 14px;
+      margin-top: 8px;
+      text-align: left;
+      display: none;
+    }
+
+    .success-message.show {
+      display: block;
+    }
+  </style>  
+</head>
+<body>
+  <main class="card">
+    <h1 class="title">🎮 Create Account</h1>
+    <p class="subtitle">Join the game and start your imposter journey!</p>
+
+    <form class="form" id="registerForm">
+      <label class="field">
+        <span>Username</span>
+        <input type="text" id="name" placeholder="Choose a username" required minlength="3" />
+        <div class="error-message" id="nameError"></div>
+      </label>
+      
+      <label class="field">
+        <span>Email</span>
+        <input type="email" id="email" placeholder="you@example.com" required />
+        <div class="error-message" id="emailError"></div>
+      </label>
+      
+      <label class="field">
+        <span>Password</span>
+        <input type="password" id="password" placeholder="••••••••" required minlength="6" />
+        <div class="error-message" id="passwordError"></div>
+      </label>
+      
+      <label class="field">
+        <span>Confirm Password</span>
+        <input type="password" id="confirmPassword" placeholder="••••••••" required />
+        <div class="error-message" id="confirmPasswordError"></div>
+      </label>
+
+      <div class="error-message" id="formError"></div>
+      <div class="success-message" id="successMessage">Account created successfully! Redirecting...</div>
+
+      <button type="submit" class="btn btn-primary" id="registerBtn" disabled>Create Account</button>
+    </form>
+
+    <p style="margin-top: 24px; font-size: 14px; color: var(--text-muted);">
+      Already have an account? 
+      <a href="/login" class="link">Log in here</a>
+    </p>
+  </main>
+
+  <script>
+    const nameEl = document.getElementById('name');
+    const emailEl = document.getElementById('email');
+    const passwordEl = document.getElementById('password');
+    const confirmPasswordEl = document.getElementById('confirmPassword');
+    const registerBtn = document.getElementById('registerBtn');
+    const form = document.getElementById('registerForm');
+
+    function validateForm() {
+      let isValid = true;
+      
+      // Clear previous errors
+      document.querySelectorAll('.error-message').forEach(el => {
+        el.classList.remove('show');
+        el.textContent = '';
+      });
+      document.getElementById('formError').classList.remove('show');
+      document.getElementById('successMessage').classList.remove('show');
+
+      // Validate name
+      if (nameEl.value.length < 3) {
+        showError('nameError', 'Username must be at least 3 characters');
+        isValid = false;
+      }
+
+      // Validate email
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(emailEl.value)) {
+        showError('emailError', 'Please enter a valid email address');
+        isValid = false;
+      }
+
+      // Validate password
+      if (passwordEl.value.length < 6) {
+        showError('passwordError', 'Password must be at least 6 characters');
+        isValid = false;
+      }
+
+      // Validate password confirmation
+      if (passwordEl.value !== confirmPasswordEl.value) {
+        showError('confirmPasswordError', 'Passwords do not match');
+        isValid = false;
+      }
+
+      registerBtn.disabled = !isValid;
+      return isValid;
+    }
+
+    function showError(elementId, message) {
+      const errorEl = document.getElementById(elementId);
+      errorEl.textContent = message;
+      errorEl.classList.add('show');
+    }
+
+    function showFormError(message) {
+      const errorEl = document.getElementById('formError');
+      errorEl.textContent = message;
+      errorEl.classList.add('show');
+    }
+
+    // Real-time validation
+    nameEl.addEventListener('input', validateForm);
+    emailEl.addEventListener('input', validateForm);
+    passwordEl.addEventListener('input', validateForm);
+    confirmPasswordEl.addEventListener('input', validateForm);
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      if (!validateForm()) {
+        return;
+      }
+
+      const name = nameEl.value.trim();
+      const email = emailEl.value.trim();
+      const password = passwordEl.value;
+      
+      registerBtn.textContent = 'Creating account...';
+      registerBtn.disabled = true;
+
+      try {
+        // Load API if not loaded
+        if (!window.API) {
+          const script = document.createElement('script');
+          script.src = '../js/api.js';
+          document.head.appendChild(script);
+          await new Promise((resolve) => {
+            script.onload = resolve;
+          });
+        }
+
+        // Create user account
+        const result = await window.API.User.create(name, email, password);
+        
+        if (result.user) {
+          // Show success message
+          document.getElementById('successMessage').classList.add('show');
+          registerBtn.textContent = 'Account created!';
+          
+          // Auto-login after registration
+          try {
+            const loginResult = await window.API.User.login(email, password);
+            
+            if (loginResult.token) {
+              Auth.set(loginResult.token);
+              localStorage.setItem('current_user_id', loginResult.user_id || result.user.id || '1');
+              
+              // Redirect to intended page or home
+              const redirectTo = sessionStorage.getItem('redirectAfterLogin') || '/home';
+              sessionStorage.removeItem('redirectAfterLogin');
+              setTimeout(() => {
+                window.location.href = redirectTo;
+              }, 1000);
+            } else {
+              // Registration successful but auto-login failed, redirect to login
+              setTimeout(() => {
+                window.location.href = "/login";
+              }, 2000);
+            }
+          } catch (loginError) {
+            console.warn('Auto-login failed:', loginError);
+            // Registration successful but auto-login failed, redirect to login
+            setTimeout(() => {
+              window.location.href = "/login";
+            }, 2000);
+          }
+        } else {
+          throw new Error('Registration failed');
+        }
+      } catch (error) {
+        console.error('Registration error:', error);
+        
+        // Handle different error types
+        let errorMessage = 'Registration failed. Please try again.';
+        
+        if (error.status === 409 || error.statusCode === 409) {
+          errorMessage = 'This email or username is already registered. Please use a different one.';
+        } else if (error.message) {
+          errorMessage = error.message;
+        }
+        
+        showFormError(errorMessage);
+        registerBtn.textContent = 'Create Account';
+        registerBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
+

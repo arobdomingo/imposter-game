@@ -74,24 +74,64 @@ ALGORITHM = "HS256"
 
 class RateLimiterMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
+        # Skip rate limiting in testing mode
         if os.environ.get("TESTING") == "1":
             return await call_next(request)
-        user_repo = get_user_repository()
 
-        # Extract JWT if available
+        # Skip rate limiting for static files and public endpoints
+        static_paths = ["/js/", "/css/", "/shared/", "/pages/", "/admin"]
+        if any(request.url.path.startswith(path) for path in static_paths):
+            return await call_next(request)
+
+        # Skip rate limiting for health checks and public API endpoints
+        public_paths = ["/v2/analytics/health", "/docs", "/redoc", "/openapi.json"]
+        if any(request.url.path.startswith(path) for path in public_paths):
+            return await call_next(request)
+
+        # Skip rate limiting for authentication endpoints (login, register, Discord OAuth)
+        auth_paths = ["/v2/authentications/", "/v2/users/", "/users/"]
+        if any(request.url.path.startswith(path) for path in auth_paths):
+            return await call_next(request)
+
+        # Skip rate limiting for game-related endpoints (lobbies, games, votes, clues, chat)
+        # These endpoints are used for real-time game polling and need frequent access
+        # Note: /games/ is without /v2/ prefix (from chat_routes.py)
+        game_paths = [
+            "/v2/lobbies/",
+            "/v2/games/",
+            "/games/",  # Chat routes use /games/{id}/chat (no /v2/ prefix)
+            "/v2/votes/",
+            "/v2/clues/",
+            "/v2/chat/",
+            "/ws/",
+        ]
+        if any(request.url.path.startswith(path) for path in game_paths):
+            return await call_next(request)
+
+        # Extract JWT if available (without database connection for unauthenticated requests)
         auth_header = request.headers.get("Authorization")
         if auth_header and auth_header.startswith("Bearer "):
             token = auth_header.split(" ")[1]
-            user = await verify_jwt(token, user_repo)
-            if user:
-                key = f"user:{user.id}"
-                limit = 2 * user.tier
-            else:
+            try:
+                user_repo = get_user_repository()
+                user = await verify_jwt(token, user_repo)
+                if user:
+                    key = f"user:{user.id}"
+                    limit = (
+                        2 * user.tier if user.tier > 0 else 10
+                    )  # Default to 10 if tier is 0
+                else:
+                    key = f"ip:{request.client.host}"
+                    limit = 10  # Increased limit for unauthenticated users
+            except Exception:
+                # If database connection fails, fall back to IP-based limiting
                 key = f"ip:{request.client.host}"
-                limit = 1
+                limit = 10
         else:
             key = f"ip:{request.client.host}"
-            limit = 1
+            limit = (
+                10  # Increased limit for unauthenticated users (was 1, too restrictive)
+            )
 
         now = time()
         window = 10
@@ -393,9 +433,16 @@ async def create_user_v2(
     try:
         new_user = await user_repo.create(user.name, user.email, user.password)
         return {"user": UserSchema.from_db_model(new_user)}
-    except IntegrityError:
+    except IntegrityError as e:
+        logger.error(f"User creation failed - IntegrityError: {str(e)}")
         response.status_code = 409
-        return {"detail": "Item already exists"}
+        return {"detail": "Username or email already exists"}
+    except Exception as e:
+        logger.error(
+            f"User creation failed - Unexpected error: {str(e)}", exc_info=True
+        )
+        response.status_code = 500
+        return {"detail": "Failed to create user. Please try again later."}
 
 
 @app.patch("/v2/users/{user_id}")
@@ -790,6 +837,10 @@ async def discord_login():
 
     if not DISCORD_CLIENT_ID or not DISCORD_REDIRECT_URI:
         # Misconfigured backend – missing env vars
+        logger.error(
+            f"Discord OAuth not configured: CLIENT_ID={'set' if DISCORD_CLIENT_ID else 'missing'}, "
+            f"REDIRECT_URI={'set' if DISCORD_REDIRECT_URI else 'missing'}"
+        )
         raise HTTPException(
             status_code=500, detail="Discord OAuth is not configured on the server."
         )
@@ -804,15 +855,53 @@ async def discord_login():
 
     url = f"{DISCORD_OAUTH_AUTHORIZE_URL}?{urlencode(params)}"
 
+    logger.info(
+        f"Discord OAuth login: redirecting to Discord\n"
+        f"  - client_id: {DISCORD_CLIENT_ID}\n"
+        f"  - redirect_uri: {DISCORD_REDIRECT_URI}\n"
+        f"  - Full URL: {url}"
+    )
+
     return RedirectResponse(url)
 
 
 @app.get("/v2/authentications/discord/callback")
 async def discord_callback(
-    code: str, user_repo: UserRepository = Depends(get_user_repository)
+    code: Optional[str] = Query(None),
+    error: Optional[str] = Query(None),
+    error_description: Optional[str] = Query(None),
+    user_repo: UserRepository = Depends(get_user_repository),
 ):
     """OAuth callback for Discord login. Discord redirects the user here with a `code` query parameter.
     1) Exchange code for access token, 2) use token to fetch profile, 3) find/create local user, 4) issue a JWT"""
+
+    # Handle Discord OAuth errors
+    if error:
+        error_msg = error_description or error
+        logger.error(f"Discord OAuth error: {error_msg}")
+        frontend_redirect_uri = os.getenv("FRONTEND_REDIRECT_URI", "/login")
+
+        # If FRONTEND_REDIRECT_URI is a relative path, make it absolute
+        if frontend_redirect_uri.startswith("/"):
+            base_url = os.getenv("BASE_URL", "")
+            if not base_url and os.getenv("RENDER"):
+                service_name = os.getenv("RENDER_SERVICE_NAME", "imposter-game")
+                base_url = f"https://{service_name}.onrender.com"
+            frontend_redirect_uri = (
+                f"{base_url}{frontend_redirect_uri}"
+                if base_url
+                else frontend_redirect_uri
+            )
+
+        redirect_url = (
+            f"{frontend_redirect_uri}?error={error}&error_description={error_msg}"
+        )
+        return RedirectResponse(url=redirect_url)
+
+    if not code:
+        raise HTTPException(
+            status_code=400, detail="Missing authorization code from Discord."
+        )
 
     if not (DISCORD_CLIENT_ID and DISCORD_CLIENT_SECRET and DISCORD_REDIRECT_URI):
         raise HTTPException(
@@ -832,9 +921,20 @@ async def discord_callback(
 
     # Something went wrong on the token exchange
     if token_resp.status_code != 200:
-        raise HTTPException(
-            status_code=400, detail="Failed to obtain access token from Discord."
-        )
+        error_detail = "Failed to obtain access token from Discord."
+        try:
+            error_json = token_resp.json()
+            error_detail = error_json.get(
+                "error_description", error_json.get("error", error_detail)
+            )
+            logger.error(
+                f"Discord token exchange failed: {error_detail}, Response: {token_resp.text}"
+            )
+        except Exception:
+            logger.error(
+                f"Discord token exchange failed: {token_resp.status_code}, Response: {token_resp.text}"
+            )
+        raise HTTPException(status_code=400, detail=error_detail)
 
     token_json = token_resp.json()
     access_token = token_json.get("access_token")
@@ -848,9 +948,18 @@ async def discord_callback(
         me_resp = await client.get(DISCORD_API_ME_URL, headers=headers)
 
     if me_resp.status_code != 200:
-        raise HTTPException(
-            status_code=400, detail="Failed to fetch user profile from Discord."
-        )
+        error_detail = "Failed to fetch user profile from Discord."
+        try:
+            error_json = me_resp.json()
+            error_detail = error_json.get("message", error_detail)
+            logger.error(
+                f"Discord profile fetch failed: {error_detail}, Response: {me_resp.text}"
+            )
+        except Exception:
+            logger.error(
+                f"Discord profile fetch failed: {me_resp.status_code}, Response: {me_resp.text}"
+            )
+        raise HTTPException(status_code=400, detail=error_detail)
 
     me = me_resp.json()
     discord_id = me["id"]
@@ -874,7 +983,31 @@ async def discord_callback(
 
     await user_repo.update_jwt(user.id, token)  # Store current JWT in the DB
 
-    return {"jwt": token, "user": UserSchema.from_db_model(user)}
+    # Redirect to frontend login page with token in URL hash (hash is not sent to server)
+    # Frontend will extract token from hash and store it
+    frontend_redirect_uri = os.getenv("FRONTEND_REDIRECT_URI", "/login")
+
+    # If FRONTEND_REDIRECT_URI is a relative path, make it absolute using the current request's base URL
+    # This ensures redirects work correctly in production (Render) vs localhost
+    if frontend_redirect_uri.startswith("/"):
+        # Get the base URL from the request (if available) or use environment variable
+        base_url = os.getenv("BASE_URL", "")
+        if not base_url:
+            # Try to construct from common environment variables
+            if os.getenv("RENDER"):
+                # On Render, construct from service URL
+                service_name = os.getenv("RENDER_SERVICE_NAME", "imposter-game")
+                base_url = f"https://{service_name}.onrender.com"
+            else:
+                # Fallback: use relative path (will work if callback is on same domain)
+                base_url = ""
+        frontend_redirect_uri = (
+            f"{base_url}{frontend_redirect_uri}" if base_url else frontend_redirect_uri
+        )
+
+    redirect_url = f"{frontend_redirect_uri}#discord_token={token}"
+
+    return RedirectResponse(url=redirect_url)
 
 
 async def get_current_user_jwt(
@@ -936,13 +1069,18 @@ if os.path.exists(frontend_path):
     # Serve HTML pages
     if os.path.exists(pages_path):
 
-        @app.get("/", response_class=FileResponse)
+        @app.get("/")
         async def read_root():
-            return FileResponse(os.path.join(pages_path, "home.html"))
+            # Redirect root to login page
+            return RedirectResponse(url="/login")
 
         @app.get("/login", response_class=FileResponse)
         async def read_login():
             return FileResponse(os.path.join(pages_path, "login.html"))
+
+        @app.get("/register", response_class=FileResponse)
+        async def read_register():
+            return FileResponse(os.path.join(pages_path, "register.html"))
 
         @app.get("/home", response_class=FileResponse)
         async def read_home():
@@ -967,3 +1105,56 @@ if os.path.exists(frontend_path):
         @app.get("/leaderboard", response_class=FileResponse)
         async def read_leaderboard():
             return FileResponse(os.path.join(pages_path, "leaderboard.html"))
+
+
+@app.get("/api/admin/run-migrations")
+@app.post("/api/admin/run-migrations")
+async def run_migrations_endpoint(
+    secret_key: str = Query(..., description="Secret key to authorize this action"),
+):
+    """
+    Manually run database migrations.
+
+    Usage: POST /api/admin/run-migrations?secret_key=YOUR_SECRET_KEY
+
+    WARNING: This should only be used for manual migration runs.
+    """
+    # Simple authentication - use a secret key from environment
+    expected_key = os.environ.get("ADMIN_SECRET_KEY", "change-me-in-production")
+    if secret_key != expected_key:
+        raise HTTPException(status_code=403, detail="Invalid secret key")
+
+    try:
+        import subprocess
+        import sys
+
+        # Run alembic upgrade head
+        result = subprocess.run(
+            [sys.executable, "-m", "alembic", "upgrade", "head"],
+            cwd="/opt/render/project/src"
+            if os.path.exists("/opt/render/project/src")
+            else ".",
+            env={**os.environ, "PYTHONPATH": "src"},
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+
+        if result.returncode == 0:
+            return {
+                "success": True,
+                "message": "Migrations completed successfully",
+                "output": result.stdout,
+            }
+        else:
+            logger.error(f"Migration failed: {result.stderr}")
+            raise HTTPException(
+                status_code=500, detail=f"Migration failed: {result.stderr}"
+            )
+    except subprocess.TimeoutExpired:
+        raise HTTPException(status_code=500, detail="Migration timed out")
+    except Exception as e:
+        logger.error(f"Error running migrations: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Failed to run migrations: {str(e)}"
+        )
