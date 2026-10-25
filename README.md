@@ -1,60 +1,36 @@
 # Imposter Game
 
-## Overview
+A multiplayer social-deduction game developed by a **five-person team** for **CMPT 276 — Introduction to Software Engineering** at Simon Fraser University. Players join lobbies, receive roles, submit clues, vote and compete across rounds.
 
-Imposter Game is a multiplayer web game inspired by social deduction games. Players join a lobby, receive words, and must submit clues to reveal the imposter among them. The game supports multiple rounds, tracks scores, and dynamically updates the lobby as players join.
+## Features
+- User accounts, JWT authentication and Discord OAuth.
+- Multiplayer lobbies, role assignment, clues, voting, scoring and leaderboards.
+- WebSocket support for real-time gameplay updates.
+- PostgreSQL persistence, SQLAlchemy and Alembic migrations.
+- Event and analytics services, admin functionality and automated tests.
 
-The project includes a complete backend implementation with FastAPI, PostgreSQL, and WebSocket support for real-time gameplay.
+## Stack
+Python, FastAPI, WebSockets, PostgreSQL, SQLAlchemy, Alembic, HTML/CSS/JavaScript, Docker Compose, pytest.
 
-## Demo and Testing
+## Explore
+- [Gameplay demo](demo.mp4)
+- [Testing checklist](TESTING_CHECKLIST.md)
+- `src/game_service/` — game and lobby logic.
+- `src/user_service/` — user and authentication logic.
+- `frontend/` — browser interface.
+- `alembic/` — database migrations.
 
-- **Demo Video**: See [demo.mp4](./demo.mp4) for a demonstration of the game in action
-- **Testing Checklist**: See [TESTING_CHECKLIST.md](./TESTING_CHECKLIST.md) for comprehensive testing documentation
+## Local setup
+Requires Python 3.13+, Docker and Docker Compose. Configure the database and Discord OAuth environment variables referenced by `docker-compose.yml`, then:
 
-## Features Implemented (Frontend)
+```bash
+docker compose up --build
+```
 
-- **Lobby Creation & Join**: Players can create a new lobby or join an existing one using a lobby code.
+Tests can be run in a configured environment with `pytest`. Some features require additional service configuration.
 
-- **Lobby Waiting Screen**: Displays connected players, lobby code, and enables the host to start the game once 4 players are present.
+## Security
+**Review the tracked `private.pem` file before deploying or sharing this repository.** Never use a committed private key as a live credential; rotate any exposed active key and remove sensitive material from history as appropriate.
 
-- **Game Round Screen**: Displays the player's assigned role and word, allows one-word clue submission, and includes a countdown timer.
-
-- **Role Types**: Normal players, imposter-aware, and imposter-unaware.
-
-- **Mock API Integration**: Uses mock JSON files to simulate backend responses (lobby, player list, assigned word) to enable frontend development independently.
-
-- **Page Navigation**: Home → Lobby → Game Round → Clue Reveal → Voting → Results.
-
-- **Responsive and Styled UI**: Clean HTML/CSS design for MVP.
-
-## Features Implemented (Backend)
-
-### User Service
-- **User Authentication**: JWT-based authentication with secure password hashing
-- **Discord OAuth Integration**: Single sign-on with Discord accounts
-- **User Management**: Registration, profile management, and user search
-- **Friendship System**: Send and manage friend requests, view friend lists
-
-### Game Service
-- **Lobby Management**: Create, join, and leave game lobbies with unique lobby codes
-- **Game Engine**: Complete game lifecycle management with role assignment (imposter/normal players)
-- **Clue Submission**: Players submit one-word clues for each round
-- **Voting System**: Vote for suspected imposters with vote tracking and validation
-- **Chat System**: Real-time chat messages during gameplay
-- **Scoring System**: Calculate scores based on game outcomes and player performance
-- **Leaderboard**: Track and display player rankings and statistics
-- **Word Service**: Dynamic word assignment for different game modes
-
-### Real-time Communication
-- **WebSocket Support**: Real-time updates for lobby state and game events
-- **Connection Management**: Efficient WebSocket connection handling for multiple concurrent games
-
-### Database & Infrastructure
-- **PostgreSQL Database**: Relational database with Alembic migrations for schema management
-- **Repository Pattern**: Clean data access layer with repository abstraction
-- **Service Layer**: Business logic separation with service classes
-
-### Additional Services
-- **Event Service**: Track and log game events for analytics
-- **Analytics Service**: Game statistics and performance metrics
-- **Admin Interface**: NiceGUI-based admin panel for system management
+## Credits
+Collaborative academic project. Features described here reflect the team repository, not necessarily one individual's contributions.
