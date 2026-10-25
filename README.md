@@ -1,5 +1,9 @@
 # Imposter Game
 
+**[Open the deployed application](https://imposter-game-dmy3.onrender.com)** · [Gameplay video](demo.mp4) · [Source code](https://github.com/arobdomingo/imposter-game)
+
+*Deployment URL is taken from `render.yaml`; availability may vary.*
+
 A multiplayer social-deduction game developed by a **five-person team** for **CMPT 276 — Introduction to Software Engineering** at Simon Fraser University. Players join lobbies, receive roles, submit clues, vote and compete across rounds.
 
 ## Features
